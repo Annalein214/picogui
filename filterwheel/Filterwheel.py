@@ -40,7 +40,8 @@ cold=False
 # Definitions
 
 # bits to setup the encoder
-SETUP_P34=bytearray([2, 1, 0x59, 0x50, 0x33, 0x34, 0x53, 0x32, 0x3A, 0x58, 0x58, 0x03, 13, 10])
+# the 1 has to be between '' !
+SETUP_P34=bytearray([2, '1', 0x59, 0x50, 0x33, 0x34, 0x53, 0x32, 0x3A, 0x58, 0x58, 0x03, 13, 10])
 SETUP_P35=bytearray([2, 0x31, 0x59, 0x50, 0x33, 0x35, 0x53, 0x31, 0x31, 0x3A, 0x58, 0x58, 0x03, 13, 10])
 # command to readposition
 READPOSITION=bytearray([2, 0x31, 0x59, 0x50, 0x32, 0x32, 0x52, 0x3A, 0x58, 0x58, 0x03, 13, 10])
@@ -89,11 +90,11 @@ class Arduino:
     def connect(self,):
         self.arduino=serial.Serial(self.path, 9600, timeout=10)
         self.log.debug("Initiated Arduino")
-        waitForArduino(self.arduino)
+        self.waitForArduino()
         self.log.info("Arduino ready!")
 
     def close_connection(self):
-        self.arduino.close()
+        self.arduino.close() #'str' object has no attribute 'close'
         self.log.info("Connection to Arduino closed!")
 
     def waitForArduino(self):
@@ -103,7 +104,7 @@ class Arduino:
         while msg.find("Arduino is ready") == -1:
             while self.arduino.inWaiting() == 0:
                 pass
-            msg = str(self.arduino.readline())
+            msg = str(self.arduino.readline()).strip('\n')
             self.log.debug("Wait for Arduino: %s"%msg)
 
 
@@ -117,16 +118,16 @@ class Arduino:
 
         # make log entry
         log_string=""
-        pos_old=readPosition(encoder)
+        pos_old=self.encoder.readPosition()
         log_string+=str(pos_old)+"; "
-        self.log.debug("Old Position",pos_old)
+        self.log.debug("Old Position %s"%pos_old)
 
 
         for n in range(50): 
 
             log_string+="%s; " % str(time.strftime("%Y_%m_%d_%H_%M_%S"))
 
-            drive=self.arduino.driveMotor("+"+NEXT)
+            drive=self.driveMotor("+"+NEXT)
             log_string+="%s; " % (drive.strip('\n'))
             pos_new=self.encoder.readPosition()
             log_string+="%s; " % (str(pos_new))
@@ -166,7 +167,7 @@ class Arduino:
 
             
             filtndx=diff.index(min(diff))
-            self.debug("Closest filter is %d (index %d)"%(FILTERS[filtndx],filtndx))
+            self.log.debug("Closest filter is %d (index %d)"%(FILTERS[filtndx],filtndx))
 
             # adjust direction
             cmmdstr+=sign[filtndx]
@@ -178,9 +179,9 @@ class Arduino:
                 cmmdstr+=adj
 
             # execute
-            self.arduino=driveMotor(cmmdstr)
+            ret=self.driveMotor(cmmdstr)
             adjPos=int(self.encoder.readPosition())
-            self.log.debug("Adjust position from:",adjPos, " with step:",cmmdstr)
+            self.log.debug("Adjust position from: %s with step: %s"%( adjPos,cmmdstr))
 
             if adjPos==FILTERS[filtndx]:
                 foundPos=True
@@ -204,8 +205,8 @@ class Encoder:
 
     def connect(self):
         self.encoder=serial.Serial(self.path, 115200, serial.EIGHTBITS, serial.PARITY_NONE, serial.STOPBITS_ONE)
-        self.log.debug ("Initiated Encoder.")
-        setupEncoder(self.encoder)
+        self.log.debug ("Initiated Encoder %s"%self.path)
+        self.setupEncoder()
         self.log.info ("Encoder ready!")
 
     def setupEncoder(self):
@@ -247,9 +248,9 @@ if __name__=="__main__":
             arduino=Arduino(arduino_path, encoder, logger)
             arduino.connect()
 
-            time.sleep(DELAY)            
+            if not test_with_short_times: time.sleep(DELAY)            
             
-            arduino.run(Arduino, Encoder)
+            arduino.run()
             
             break
         except serial.SerialException as e:
@@ -258,6 +259,11 @@ if __name__=="__main__":
             if 'encoder' in globals(): encoder.close_connection()
             continue
         except (KeyboardInterrupt, SystemExit, RuntimeError):
+            traceback.print_exc()
+            if 'arduino' in globals(): arduino.close_connection()
+            if 'encoder' in globals(): encoder.close_connection()
+            break
+        except: 
             traceback.print_exc()
             if 'arduino' in globals(): arduino.close_connection()
             if 'encoder' in globals(): encoder.close_connection()
