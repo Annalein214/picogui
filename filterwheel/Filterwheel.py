@@ -47,16 +47,16 @@ SETUP_P35=bytearray([2, 0x31, 0x59, 0x50, 0x33, 0x35, 0x53, 0x31, 0x31, 0x3A, 0x
 READPOSITION=bytearray([2, 0x31, 0x59, 0x50, 0x32, 0x32, 0x52, 0x3A, 0x58, 0x58, 0x03, 13, 10])
 
 # Filter positions
-CLOSED = 592
-OPEN = 796
-FILTER325 = 1001
-FILTER350 = 1205
-FILTER375 = 1407
-FILTER400 = 1612
-FILTER425 = 1816
 FILTER450 = 2022
-FILTER475 = 179
+FILTER425 = 1816
+FILTER400 = 1612
+FILTER375 = 1407
+FILTER350 = 1205
+FILTER325 = 1001
+OPEN = 796
+CLOSED = 592    # looks good by eye
 FILTER500 = 386
+FILTER475 = 179
 
 # order of filters
 FILTERS = [FILTER450, FILTER475, FILTER500, CLOSED, OPEN, FILTER325, FILTER350, FILTER375, FILTER400, FILTER425]
@@ -65,8 +65,7 @@ FILTERS = [FILTER450, FILTER475, FILTER500, CLOSED, OPEN, FILTER325, FILTER350, 
 NEXT = "0745"
 ADJUST = "0010"
 STEP = "0005"
-if cold:
-    # steps at cold temperatures
+if cold:     # steps at cold temperatures
     NEXT= "1045"
     ADJUST="0015"
     STEP="0007"
@@ -74,7 +73,7 @@ if cold:
 ERRCNT = 5
 
 if test_with_short_times:
-    DELAY=10
+    DELAY=60
 else:
     DELAY=3600
 ###################################################################################################
@@ -122,21 +121,18 @@ class Arduino:
         log_string+=str(pos_old)+"; "
         self.log.debug("Old Position %s"%pos_old)
 
-
         for n in range(50): 
-
             log_string+="%s; " % str(time.strftime("%Y_%m_%d_%H_%M_%S"))
-
             drive=self.driveMotor("+"+NEXT)
             log_string+="%s; " % (drive.strip('\n'))
             pos_new=self.encoder.readPosition()
             log_string+="%s; " % (str(pos_new))
             adjPos=self.adjustPosition(pos_new, adj=ADJUST, stp=STEP) ###############
-            log_string+="%s; " % str(adaPos)
+            log_string+="%s; " % str(adjPos)
 
             log_string+="%s; " % str(time.strftime("%Y_%m_%d_%H_%M_%S"))
 
-            self.log.info(log_string)
+            self.log.info("Log String: %s"%log_string)
             log_string=""
             time.sleep(DELAY)
 
@@ -155,7 +151,6 @@ class Arduino:
             cmmdstr=""
             diff=[]
             sign=[]
-
             self.log.debug("Wrong position, searching closest filter...")
             # find the filter which is closest
             for i in range(len(FILTERS)):
@@ -227,7 +222,7 @@ class Encoder:
         pos=self.encoder.readline()
         #print("Read Position: %s"%str(pos))
         pos=pos[2:-6] # rest is rubbish
-        print("Read Position: %s"%str(pos))
+        self.log.debug("Read Position: %s"%str(pos))
         return pos
 
 ###################################################################################################
