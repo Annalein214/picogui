@@ -86,25 +86,60 @@ class Arduino:
         self.log=log
         self.encoder=encoder
 
+        # search for the correct port  #### here  TODO
+        if port==None:
+            # find a port 
+            self.log.info("FA: No port given. Try to find port")
+            ports=self.findPorts()
+            self.log.debug("FA: Potential ports: %s"%(", ".join(ports)))
+
+            # test potential ports
+            for port in ports:
+                test=self.test(port)
+                if test==True:
+                    self.port=port
+                    break
+                    
+        if self.port==None:
+            self.log.error("FA: No port found. Measurement switched off!")
+        else:
+            self.log.info("FA: Using device at port %s" % self.port)
+
+
+    def test(self, port):
+        try:
+            self.log.info("FW: Test Port:%s"% port)
+            self.port=port
+            self.connect()
+            return True
+        except Exception as e:
+            self.port=None
+            try: self.close_connection() except: pass
+            self.encoder=None
+            self.log.info("FW: Error testing port %s: %s" %( port, e))
+            return False
+
     def connect(self,):
         self.arduino=serial.Serial(self.path, 9600, timeout=10)
-        self.log.debug("Initiated Arduino")
+        self.log.debug("FA: Initiated Arduino")
         self.waitForArduino()
-        self.log.info("Arduino ready!")
+        self.log.info("FA: Arduino ready!")
 
     def close_connection(self):
-        self.arduino.close() #'str' object has no attribute 'close'
-        self.log.info("Connection to Arduino closed!")
+        if hasattr(self, 'arduino'):
+            if self.arduino!=None:
+                self.arduino.close() #'str' object has no attribute 'close'
+                self.log.info("FA: Connection to Arduino closed!")
 
     def waitForArduino(self):
         # wait for Arduino response after boot up
         msg=""
-        self.log.debug("Waiting for Arduino...")
-        while msg.find("Arduino is ready") == -1:
+        self.log.debug("FA: Waiting for Arduino...")
+        while msg.find("FA: Arduino is ready") == -1:
             while self.arduino.inWaiting() == 0:
                 pass
             msg = str(self.arduino.readline()).strip('\n')
-            self.log.debug("Wait for Arduino: %s"%msg)
+            self.log.debug("FA: Wait for Arduino: %s"%msg)
 
 
     def driveMotor(self, x):
@@ -119,7 +154,7 @@ class Arduino:
         log_string=""
         pos_old=self.encoder.readPosition()
         log_string+=str(pos_old)+"; "
-        self.log.debug("Old Position %s"%pos_old)
+        self.log.debug("FA: Old Position %s"%pos_old)
 
         for n in range(50): 
             log_string+="%s; " % str(time.strftime("%Y_%m_%d_%H_%M_%S"))
@@ -132,11 +167,15 @@ class Arduino:
 
             log_string+="%s; " % str(time.strftime("%Y_%m_%d_%H_%M_%S"))
 
-            self.log.info("Log String: %s"%log_string)
+            self.log.info("FA: Log String: %s"%log_string)
             log_string=""
             time.sleep(DELAY)
 
-    def adjustPosition(self, pos, adj, stp):
+    def adjustPosition(self, 
+                       pos, # new position
+                       adj, # large step size
+                       stp, # small step size
+                       ): 
 
         def getSign(x):
             if x<0:
@@ -151,7 +190,7 @@ class Arduino:
             cmmdstr=""
             diff=[]
             sign=[]
-            self.log.debug("Wrong position, searching closest filter...")
+            self.log.debug("FA: Wrong position, searching closest filter...")
             # find the filter which is closest
             for i in range(len(FILTERS)):
                 diff.append(abs(FILTERS[i]-int(adjPos)))
@@ -162,7 +201,7 @@ class Arduino:
 
             
             filtndx=diff.index(min(diff))
-            self.log.debug("Closest filter is %d (index %d)"%(FILTERS[filtndx],filtndx))
+            self.log.debug("FA: Closest filter is %d (index %d)"%(FILTERS[filtndx],filtndx))
 
             # adjust direction
             cmmdstr+=sign[filtndx]
@@ -176,18 +215,18 @@ class Arduino:
             # execute
             ret=self.driveMotor(cmmdstr)
             adjPos=int(self.encoder.readPosition())
-            self.log.debug("Adjust position from: %s with step: %s"%( adjPos,cmmdstr))
+            self.log.debug("FA: Adjust position from: %s with step: %s"%( adjPos,cmmdstr))
 
             if adjPos==FILTERS[filtndx]:
                 foundPos=True
-                self.log.debug("Found position")
+                self.log.debug("FA: Found position")
                 return adjPos
             elif adjPos==2047:
                 ERRCNT-=1
                 if ERRCNT == 0:
                     raise RuntimeError
             else:
-                self.log.debug("Position not found")
+                self.log.debug("FA: Position not found")
                 time.sleep(1)
 
 
@@ -198,31 +237,73 @@ class Encoder:
         self.path=path
         self.log=log
 
+        if port != None:
+            test=self.test(port)
+            if test == False:
+                self.port=None
+    
+        # search for the correct port  #### here  TODO
+        if port==None:
+            # find a port 
+            self.log.info("FW: No port given. Try to find port")
+            ports=self.findPorts()
+            self.log.debug("FW: Potential ports: %s"%(", ".join(ports)))
+
+            # test potential ports
+            for port in ports:
+                test=self.test(port)
+                if test==True:
+                    self.port=port
+                    break
+                    
+        if self.port==None:
+            self.log.error("FW: No port found. Measurement switched off!")
+        else:
+            self.log.info("FW: Using device at port %s" % self.port)
+
+
+    def test(self, port):
+        try:
+            self.log.info("FW: Test Port:%s"% port)
+            self.port=port
+            self.connect()
+            self.readPosition()
+            return True
+        except Exception as e:
+            self.port=None
+            try: self.close_connection() except: pass
+            self.encoder=None
+            self.log.info("FW: Error testing port %s: %s" %( port, e))
+            return False
+
+
     def connect(self):
         self.encoder=serial.Serial(self.path, 115200, serial.EIGHTBITS, serial.PARITY_NONE, serial.STOPBITS_ONE)
-        self.log.debug ("Initiated Encoder %s"%self.path)
+        self.log.debug ("FW: Initiated Encoder %s"%self.path)
         self.setupEncoder()
-        self.log.info ("Encoder ready!")
+        self.log.info ("FW: Encoder ready!")
 
     def setupEncoder(self):
-        self.log.debug("Setting up Encoder...")
+        self.log.debug("FW: Setting up Encoder...")
         self.encoder.write(SETUP_P34)
         self.encoder.readline()
-        self.log.debug("Initialising Encoder...")
+        self.log.debug("FW: Initialising Encoder...")
         self.encoder.write(SETUP_P35)
         self.encoder.readline()
-        self.log.debug("Encoder is ready!")
+        self.log.debug("FW: Encoder is ready!")
 
     def close_connection(self):
         if hasattr(self, 'encoder'):
-            self.log.info("Connection to Encoder closed!")
+            if self.encoder!=None:
+                self.encoder.close()
+                self.log.info("FW: Connection to Encoder closed!")
 
     def readPosition(self):
         self.encoder.write(READPOSITION)
         pos=self.encoder.readline()
         #print("Read Position: %s"%str(pos))
         pos=pos[2:-6] # rest is rubbish
-        self.log.debug("Read Position: %s"%str(pos))
+        self.log.debug("FW: Read Position: %s"%str(pos))
         return pos
 
 ###################################################################################################
@@ -238,10 +319,8 @@ if __name__=="__main__":
         try:
             
             encoder=Encoder(encoder_path, logger)
-            encoder.connect()
 
             arduino=Arduino(arduino_path, encoder, logger)
-            arduino.connect()
 
             if not test_with_short_times: time.sleep(DELAY)            
             

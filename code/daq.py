@@ -107,7 +107,6 @@ class myPicoScope(QThread):
         
         #################
         
-        self.channelEnabled={"A": False, "B": False, "C":False, "D": False}
         #self.measurementrunning=False
         self.triggerenabled=False
         #self.measurementenabled=False
@@ -873,11 +872,13 @@ class myPicoScope(QThread):
                   tag="_%03d"%int(self.noSaves)
                   )
                   
-        meas.plotVetoCheck(NRate=100, 
-                   NMean=100, 
+        meas.plotVetoCheck(
                   xlabeltime=0.5,
                   figname=str(t)+"_%03d"%int(self.noSaves),
                   dir=self.saveDirectory,
+                  enabledChannels=self.channelEnabled,
+                  measTemp=self.measureTemp,
+                  measCPU=  self.measureCPU,
                   )
                   
         #meas.areaSpectrum(figname=t,
@@ -886,12 +887,12 @@ class myPicoScope(QThread):
         #             bins=128,
         #             dir=directory,
         #            )    
-        #meas.amplSpectrum(figname=t,
-        #             borders=(-self.voltagerange["A"]*1000+self.offset["A"]*1000,
-        #                     self.voltagerange["A"]*1000+self.offset["A"]*1000),
-        #             bins=128,
-        #             dir=directory,
-        #            )
+        meas.amplSpectrum(figname=str(t)+"_%03d"%int(self.noSaves),
+                     borders=(-self.voltagerange["A"]*1000+self.offset["A"]*1000,
+                             self.voltagerange["A"]*1000+self.offset["A"]*1000),
+                     bins=128,
+                     dir=self.saveDirectory,
+                    )
 
     def saveAll(self):
     

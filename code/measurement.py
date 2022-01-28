@@ -9,6 +9,15 @@ from matplotlib.ticker import FormatStrFormatter
 
 DEBUG=False
 
+
+'''
+TODO:
+- include HV voltage from external logs
+- include filter wheel position from external logs
+- remove x-labels from upper plots
+
+'''
+
 def gain(x):
    return 4.3820810269624345e-9*x**(0.50531132059975381*10)
 
@@ -128,8 +137,6 @@ class Measurement:
         f.close()
         #print "end"
         return settings
-         
-
 
     def findComments(self):
         #print "findComments"
@@ -224,7 +231,7 @@ class Measurement:
         
 
         #if DEBUG: print "\tLoad amplitudes ..."
-        files=glob(directory+starttime+tag+"*"+"_amp*")
+        files=glob(directory+starttime+tag+"*"+"_amp*") # this should give only one file, thus only data of the last hour
         #if files==[]: print "\t\tError amp"+label,directory+starttime+"*"+"_amp*" 
         #else: 
         #    if DEBUG: print "\t\tFile number:", len(files)
@@ -338,7 +345,7 @@ class Measurement:
 #########################################################################################################
         
     def plotVetoCheck(self, 
-                      xlabeltime=3, 
+                      xlabeltime=6, 
                       figname=None, 
                       borders1=None,
                       borders2=None,
@@ -347,12 +354,13 @@ class Measurement:
                       borders5=None,
                       borders6=None,
                       borders7=None,
-                      NRate=None,
-                      NMean=None,
                       cutValue=None,
                       axvlines=None,
                       rateCut=False,
                       dir="",
+                      enabledChannels={"A":True, "B":False, "C":False, "D":False},
+                      measTemp=False,
+                      measCPU= False,
                      ):
         
 
@@ -363,122 +371,186 @@ class Measurement:
             return
 
         
+        #----------------------------------------------------------------------
+        # Pre process data
 
-        # running mean of amp pmt and amp noise
-        meanNoiseAmp=[]
-        medianNoiseAmp=[]
+
+        # rate
+        if enabledChannels["A"]:
+            meanAmp=[]
+            allcounts=[]
+            counts=[]
+            for capture in self.amplitudes:
+                    allcounts.append(len(capture))
+                    capture=-np.array(capture)*1000
+                    if cutValue!=None:
+                        #print len(amps), np.mean(amps)
+                        cut=capture>cutValue
+                        capture=capture[cut]
+                    counts.append(len(capture))
+                    meanAmp.append(np.mean(capture))
+            self.meanAmp=meanAmp
         
-        for capture in self.namplitudes:
+            N2=100
+            if len(self.meanAmp) < N2*10: 
+                N2 = min(10,len(self.meanAmp)/10)
+            runningmean2=np.convolve(self.meanAmp, np.ones((N2,))/N2, mode='same')
+            runninghours=self.hours
+            runninghours=runninghours[int(0.5*N2):-int(0.5*N2)]
+            ampM=runningmean2[int(0.5*N2):-int(0.5*N2)]
+            
                 
-                meanNoiseAmp.append(np.mean(capture))
-                medianNoiseAmp.append(np.median(capture))
-        self.meanNoiseAmp=-np.array(meanNoiseAmp)*1000
-        self.medianNoiseAmp=-np.array(medianNoiseAmp)*1000
-        
-        meanAmp=[]
-        allcounts=[]
-        counts=[]
-        for capture in self.amplitudes:
-                allcounts.append(len(capture))
-                capture=-np.array(capture)*1000
-                if cutValue!=None:
-                    #print len(amps), np.mean(amps)
-                    cut=capture>cutValue
-                    capture=capture[cut]
-                counts.append(len(capture))
-                meanAmp.append(np.mean(capture))
-        self.meanAmp=meanAmp
-        
-        N=300
-        if NMean!=None: N=NMean
-        runningmean2=np.convolve(self.meanAmp, np.ones((N,))/N, mode='same')
-        runninghours=self.hours
-        runninghours=runninghours[int(0.5*N):-int(0.5*N)]
-        ampM=runningmean2[int(0.5*N):-int(0.5*N)]
-        if self.meanNoiseAmp!=[]:
-            runningmean3=np.convolve(self.meanNoiseAmp, np.ones((N,))/N, mode='same')
-            ampMN=runningmean3[int(0.5*N):-int(0.5*N)]
+            # running mean of rate
+            if rateCut==False:
+                rates=self.rates
+            else:
+                # Rate anders berechnen
+                times=np.array(allcounts)/self.rates
+                rates=np.array(counts)/times
+                self.ratesCut=rates
             
-        # running mean of rate
-        if rateCut==False:
-            rates=self.rates
-        else:
-            # Rate anders berechnen
-            times=np.array(allcounts)/self.rates
-            rates=np.array(counts)/times
-            self.ratesCut=rates
-            
-            
-        N=300
-        if NRate!=None: N=NRate
-        runningmean=np.convolve(rates, np.ones((N,))/N, mode='same')
-        runningmeanx=self.hours
-        runningmeanx=runningmeanx[int(0.5*N):-int(0.5*N)]
-        rateM=runningmean[int(0.5*N):-int(0.5*N)]
-        self.RMRate=rateM
-        self.RMTime=runningmeanx
+            N1=100
+            if len(rates) < N1*10: 
+                N1 = min(10,len(self.meanAmp)/10)
+            runningmean=np.convolve(rates, np.ones((N1,))/N1, mode='same')
+            runningmeanx=self.hours
+            runningmeanx=runningmeanx[int(0.5*N1):-int(0.5*N1)]
+            rateM=runningmean[int(0.5*N1):-int(0.5*N1)]
+            self.RMRate=rateM
+            self.RMTime=runningmeanx
 
-        ## plot
+        # noise
+        if enabledChannels["D"]:
+            # running mean of amp pmt and amp noise
+            meanNoiseAmp=[]
+            medianNoiseAmp=[]
+            
+            for capture in self.namplitudes:
+                    
+                    meanNoiseAmp.append(np.mean(capture))
+                    medianNoiseAmp.append(np.median(capture))
+            self.meanNoiseAmp=-np.array(meanNoiseAmp)*1000
+            self.medianNoiseAmp=-np.array(medianNoiseAmp)*1000
+            if self.meanNoiseAmp!=[]:
+                runningmean3=np.convolve(self.meanNoiseAmp, np.ones((N2,))/N2, mode='same')
+                ampMN=runningmean3[int(0.5*N2):-int(0.5*N2)]
+        #----------------------------------------------------------------------
+        # initialise plot
+        
         fig=plt.figure(figsize=(10,10))
         subplotnumber=7
-        i=11
-        axis = fig.add_subplot(subplotnumber*100+i); i+=1 # 1 zeile, 1 spalte, 1. plot
-        ax2=fig.add_subplot(subplotnumber*100+i); i+=1
-        ax3=fig.add_subplot(subplotnumber*100+i); i+=1
-        ax4=fig.add_subplot(subplotnumber*100+i); i+=1
-        ax5=fig.add_subplot(subplotnumber*100+i); i+=1
-        ax6=fig.add_subplot(subplotnumber*100+i); i+=1
-        ax7=fig.add_subplot(subplotnumber*100+i); i+=1
+        i=11 # required to get the plots at the correct position
 
-        axis.plot(self.hours, rates, "b",linewidth=1., alpha=0.8, label="Rate per Capture")
-        axis.plot(runningmeanx, rateM, "k",linewidth=2., label="Running Mean N=%d"%N)
+        # switch off channels
+        if not enabledChannels["A"]: subplotnumber-=2
+        if not enabledChannels["D"]: subplotnumber-=1
+        if not measTemp: subplotnumber-=2
+        if not enabledChannels["C"]:  subplotnumber-=1 
+        if not enabledChannels["B"]:  subplotnumber-=1
+        if not measCPU: subplotnumber-=1
         
-        try:
-            ax2.plot(self.temptimes, self.temp1,label=self.tempLabels[0], color="blue", alpha=0.7)
-            ax2.plot(self.temptimes, self.temp2,label=self.tempLabels[1], color="green", alpha=0.7)
-            ax2.plot(self.temptimes, self.temp3,label=self.tempLabels[2], color="cyan", alpha=0.7)
-            ax2.plot(self.temptimes, self.temp4,label=self.tempLabels[3], color="mediumslateblue", alpha=0.7)
-        except Exception as e: 
-            #print e
-            pass
+        # produce subplots ------------------
+        if enabledChannels["A"]: 
+            # rate
+            axis = fig.add_subplot(subplotnumber*100+i); i+=1 # 1 zeile, 1 spalte, 1. plot
+            # ch A mean amp
+            ax6=fig.add_subplot(subplotnumber*100+i); i+=1
+        # temperature
+        if measTemp: 
+            ax2=fig.add_subplot(subplotnumber*100+i); i+=1
+            ax8=fig.add_subplot(subplotnumber*100+i); i+=1
+        # room light
+        if enabledChannels["C"]: ax3=fig.add_subplot(subplotnumber*100+i); i+=1
+        # HV
+        if enabledChannels["B"]: ax4=fig.add_subplot(subplotnumber*100+i); i+=1
+        # Noise
+        if enabledChannels["D"]: ax5=fig.add_subplot(subplotnumber*100+i); i+=1
+        # cpu
+        if measCPU: ax7=fig.add_subplot(subplotnumber*100+i); i+=1
+
+        # collect axes -----------------
+        axes=[]
+        if enabledChannels["A"]: 
+            axes.append(axis)
+            axes.append(ax6)
+        if measTemp:  
+            axes.append(ax2)
+            axes.append(ax8)
+        if enabledChannels["C"]: axes.append(ax3)
+        if enabledChannels["B"]: axes.append(ax4)
+        if enabledChannels["D"]: axes.append(ax5)
+        if measCPU:  axes.append(ax7)
+
+        # ----------------
+        # fill data into axes
+
+        if enabledChannels["A"]:
+            axis.plot(self.hours, rates, "b",linewidth=1., alpha=0.8, label="Rate per Capture")
+            axis.plot(runningmeanx, rateM, "k",linewidth=2., label="Running Mean N=%d"%N1)
+
+            ax6.plot(self.hours, self.meanAmp, label="PMT")
+            if cutValue==None:
+                text=""
+            else:
+                text="Cut %d" %cutValue
+            ax6.plot(runninghours, ampM, "k",linewidth=2., label="Running Mean N=%d %s"%(N2, text))
         
-        try:
-            ax3.plot(self.hours, self.chC, label="Light")
-        except: pass
-
-        try:
-            cB=[]
-            for capture in self.HVs:
-                cB.append(np.mean(capture))
-            #print ("HV",np.mean(cB))
-            channelB=np.array(cB)
-
-            ax4.plot(self.hours, channelB)
-        except: pass
-        if self.meanNoiseAmp!=[]:
-            ax5.plot(self.hours, self.meanNoiseAmp, label="Antenna")
-            ax5.plot(runninghours, ampMN, "k",linewidth=2., label="Running Mean N=%d"%N)
-        ax6.plot(self.hours, self.meanAmp, label="PMT")
-        if cutValue==None:
-            text=""
-        else:
-            text="Cut %d" %cutValue
-        ax6.plot(runninghours, ampM, "k",linewidth=2., label="Running Mean N=%d %s"%(N, text))
-        try:
-            ax7.plot(self.cputime, self.cpu1, label="CPU 1", color="blue", alpha=0.7)
-            ax7.plot(self.cputime, self.cpu2, label="CPU 2", color="green", alpha=0.7)
+        if measTemp: 
             try:
-                ax7.plot(self.cputime, self.cpu3, label="CPU 3", color="cyan", alpha=0.7)
-                ax7.plot(self.cputime, self.cpu4, label="CPU 4", color="mediumslateblue", alpha=0.7)
-            except:
+                ax8.plot(self.temptimes, self.temp1,label=self.tempLabels[0], color="blue", alpha=0.7) # room temperature, plot separately
+                ax2.plot(self.temptimes, self.temp2,label=self.tempLabels[1], color="green", alpha=0.7)
+                ax2.plot(self.temptimes, self.temp3,label=self.tempLabels[2], color="cyan", alpha=0.7)
+                #ax2.plot(self.temptimes, self.temp4,label=self.tempLabels[3], color="mediumslateblue", alpha=0.7) # sensor broken
+            except Exception as e: 
+                #print e
                 pass
-            ax7.plot(self.cputime, self.memory,label="Memory", color="black", linewidth=2, alpha=0.7)
-        except:
-            pass
-        axes=[axis, ax2, ax3,ax4, ax5, ax6, ax7]
-
         
-        axis.text(0.95, 1.05, 
+        if enabledChannels["C"]:
+            try:
+                ax3.plot(self.hours, self.chC, label="Light")
+            except: pass
+
+        if enabledChannels["B"]: 
+            try:
+                cB=[]
+                for capture in self.HVs:
+                    cB.append(np.mean(capture))
+                #print ("HV",np.mean(cB))
+                channelB=np.array(cB)
+
+                ax4.plot(self.hours, channelB)
+            except: pass
+
+        if enabledChannels["D"]:
+            if self.meanNoiseAmp!=[]:
+                ax5.plot(self.hours, self.meanNoiseAmp, label="Antenna")
+                ax5.plot(runninghours, ampMN, "k",linewidth=2., label="Running Mean N=%d"%N2)
+        
+        if measCPU:  
+            try:
+                ax7.plot(self.cputime, self.cpu1, label="CPU 1", color="blue", alpha=0.7)
+                ax7.plot(self.cputime, self.cpu2, label="CPU 2", color="green", alpha=0.7)
+                try:
+                    ax7.plot(self.cputime, self.cpu3, label="CPU 3", color="cyan", alpha=0.7)
+                    ax7.plot(self.cputime, self.cpu4, label="CPU 4", color="mediumslateblue", alpha=0.7)
+                except:
+                    pass
+                ax7.plot(self.cputime, self.memory,label="Memory", color="black", linewidth=2, alpha=0.7)
+            except:
+                pass        
+
+        # set y labels ----------
+        if enabledChannels["A"]:
+            axis.set_ylabel("Rate / Hz", fontsize=11)
+            ax6.set_ylabel("<Ampl.> / mV", fontsize=10)
+        if measTemp: ax2.set_ylabel(r"Temp. / $^{\circ}$C", fontsize=10)
+        if enabledChannels["C"]: ax3.set_ylabel(r"Room light / V", fontsize=10)
+        if enabledChannels["B"]: ax4.set_ylabel("HV / V", fontsize=11)
+        if enabledChannels["D"]: ax5.set_ylabel("<Ampl.> / mV", fontsize=10)
+        if measCPU:  ax7.set_ylabel("PC / %", fontsize=11)
+        
+        # set title
+        axes[0].text(0.95, 1.05, 
             "Started at %s"% (self.starttime),
             #fontsize=fs_small, 
             color="Black",style="italic",
@@ -486,74 +558,25 @@ class Measurement:
             verticalalignment='bottom',
             horizontalalignment="right",
             )
-        '''
-        ax5.text(0.05, 0.95, 
-            "Antenna",
-            color="Black",
-            transform=ax5.transAxes, 
-            verticalalignment='top',
-            horizontalalignment="left",
-            )
-
-        ax6.text(0.05, 0.15, 
-            "PMT",
-            color="Black",
-            transform=ax6.transAxes, 
-            verticalalignment='top',
-            horizontalalignment="left",
-            )
-        '''
-        #########
-
-        axis.set_ylabel("Rate / Hz", fontsize=11)
-        ax2.set_ylabel(r"Temp. / $^{\circ}$C", fontsize=10)
-        ax3.set_ylabel(r"Room light / V", fontsize=10)
-        ax4.set_ylabel("HV / V", fontsize=11)
-        ax5.set_ylabel("<Ampl.> / mV", fontsize=10)
-        ax6.set_ylabel("<Ampl.> / mV", fontsize=10)
-        ax7.set_ylabel("PC / %", fontsize=11)
+        # set x label
         axes[-1].set_xlabel("Day of month / Hour of Day", fontsize=15)
 
-        labels=ax2.get_xticks().tolist()
-        #print min(labels), max(labels), xlabeltime
+        # adjust quantity of x lables
+        labels=axis.get_xticks().tolist()
         ticks=np.arange(int(labels[0]), int(labels[-1])+xlabeltime, xlabeltime)
-        #print ticks
         l1=ticks%24
         l2=np.float32(np.float64(ticks)/24)+self.day
         labels=[]
+        labels_empty=[]
         try:
             for i in range(len(ticks)):
                 labels.append("%d/%.1f" %(l2[i],l1[i]))
+                labels_empty.append(" ")
         except: pass
 
-        ax4.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
-
-        if borders1!=None:
-            axis.set_ylim(borders1[0],borders1[1])
-        if borders2!=None:
-            ax2.set_ylim(borders2[0],borders2[1])
-        if borders3!=None:
-            ax3.set_ylim(borders3[0],borders3[1])
-        if borders4!=None:
-            ax4.set_ylim(borders4[0],borders4[1])
-        if borders5!=None:
-            ax5.set_ylim(borders5[0],borders5[1])
-        if borders6!=None:
-            ax6.set_ylim(borders6[0],borders6[1])
-        if borders7!=None:
-            ax7.set_ylim(borders7[0],borders7[1])
-            
-        #ax7.set_ylim(0,100)
-        
-        
-        ax2.legend(loc="best",ncol=3, prop={"size":6})
-        ax5.legend(loc="best",ncol=3, prop={"size":6})
-        ax6.legend(loc="best",ncol=3, prop={"size":6})
-        ax7.legend(loc="best",ncol=3, prop={"size":6})
-
+        # apply to all axes -------------
         i=1
         for ax in axes:
-            
             if axvlines!=None:
                 for axv in axvlines:
                     ax.axvline(axv, color="black")
@@ -562,21 +585,54 @@ class Measurement:
             #if i==3:
             #    continue
             ax.set_xticks(list(ticks))
-            ax.set_xticklabels(list(labels))
+            ax.set_xticklabels(list(labels_empty)) # otherwise try: ax1.xaxis.set_ticklabels([])
+
             ax.set_xlim(min(self.hours),max(self.hours))
             #ax.set_xlim(4,10)
             i+=1
+        axes[-1].set_xticklabels(list(labels))
 
-        #ax4.set_xlim(22,23)
+        # format y ticks -----------------------------
+        if enabledChannels["B"]: ax4.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
 
+        # set y limits ----------------------
+        if enabledChannels["A"]: 
+            if borders1!=None:
+                axis.set_ylim(borders1[0],borders1[1])
+            if borders6!=None:
+                ax6.set_ylim(borders6[0],borders6[1])
+        if measTemp:
+            if borders2!=None:
+                ax2.set_ylim(borders2[0],borders2[1])
+        if enabledChannels["C"]: ax3
+            if borders3!=None:
+                ax3.set_ylim(borders3[0],borders3[1])
+        if enabledChannels["B"]: 
+            if borders4!=None:
+                ax4.set_ylim(borders4[0],borders4[1])
+        if enabledChannels["D"]: 
+            if borders5!=None:
+                ax5.set_ylim(borders5[0],borders5[1])            
+        if measCPU:  
+            if borders7!=None:
+                ax7.set_ylim(borders7[0],borders7[1])
+                
+        # set legends ---------------
+        if measTemp: ax2.legend(loc="best",ncol=3, prop={"size":6})
+        if enabledChannels["A"]:  
+            axis.legend(loc="best",ncol=3, prop={"size":6})
+            ax6.legend(loc="best",ncol=3, prop={"size":6})
+        if enabledChannels["D"]:  ax5.legend(loc="best",ncol=3, prop={"size":6})
+        if measCPU:  ax7.legend(loc="best",ncol=3, prop={"size":6})
+
+        # save ----------------------------------
         #plt.show()
         if figname!=None:
-            fig.savefig(dir+"Veto_"+figname.replace(" ","_")+".png", bbox_inches='tight'); fig.clear(); plt.clf(); plt.close(fig);
+            fig.savefig(dir+"Veto_"+figname.replace(" ","_")+".png", bbox_inches='tight')
+            fig.clear(); plt.clf(); plt.close(fig);
             
             
 #########################################################################################################
-
-
 
 
     def getTimefromRun(self,Subrunnumber=390-(60), subruns=390, srduration=10.*60):
@@ -605,7 +661,7 @@ class Measurement:
                      log=True,
                      dir="",
                     ):      
-    # Areas
+        # Areas
 
 
         s=self
@@ -678,8 +734,6 @@ class Measurement:
                      log=True,
                      dir="",
                     ):      
-    # Areas
-
         
         s=self
         
