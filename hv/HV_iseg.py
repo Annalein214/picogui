@@ -1,7 +1,7 @@
 from __future__ import print_function
 from __future__ import absolute_import
 
-import serial, time, sys, traceback
+import serial, time, sys, traceback, os
 from glob import glob
 
 sys.path.append("../code/")
@@ -10,9 +10,9 @@ from log import log
 ###################################################################################################
 # Configuration
 
-path="/dev/ttyUSB1"
+port="/dev/ttyUSB1"
 
-log_dir=os.getcwd() # current directory
+log_dir=os.getcwd()+"/log/" # current directory
 
 log_level="debug" # debug, info
 
@@ -49,8 +49,8 @@ voltages_down = [s_voltage_1000, s_voltage_900, s_voltage_800, s_voltage_700,
 
 
 class HV:
-    def __init__(self,path, log):
-        self.path=path
+    def __init__(self,port, log):
+        self.port=port
         self.log=log
 
         # check if given port is ok
@@ -87,7 +87,8 @@ class HV:
             return True
         except Exception as e:
             self.port=None
-            try: self.close_connection(); except: pass
+            try: self.close_connection()
+            except: pass
             self.hv=None
             self.log.info("HV: Error testing port %s: %s" %( port, e))
             return False
@@ -106,8 +107,8 @@ class HV:
         return ports
 
     def start_connection(self):
-        self.hv=serial.Serial(self.path, 9600, serial.EIGHTBITS, serial.PARITY_NONE, serial.STOPBITS_ONE ,timeout=2)
-        self.log.info("HV: connected to HV at %s"%self.path)
+        self.hv=serial.Serial(self.port, 9600, serial.EIGHTBITS, serial.PARITY_NONE, serial.STOPBITS_ONE ,timeout=2)
+        self.log.info("HV: connected to HV at %s"%self.port)
 
         V_curr = float(self.read_current_voltage())
         if V_curr==None: raise Exception("HV ERROR: connected but cannot understand answer.")
@@ -134,7 +135,7 @@ class HV:
     def check_answer(self,answer):
         if answer.startswith('?'):
             return -1
-        elif isDigit(answer):
+        elif self.isDigit(answer):
             return 1
         else:
             print(answer)
@@ -165,32 +166,32 @@ class HV:
         self.log.info("HV: Ramping up HV - please wait!")    
         time.sleep(1)
         for i in range(len(voltages_up)): 
-            self.HV_log.write(voltages_up[i])
-            self.log.debug("HV: Device output %s" % str(device.readline()))
-            time.sleep(2)
-            V=read_current_voltage(device)
-            self.log.info("HV: Voltage:",V)
-            time.sleep(5)
+            self.hv.write(voltages_up[i])
+            self.log.debug("HV: Device output: %s" % str(self.hv.readline()))
+            time.sleep(1)
+            V=self.read_current_voltage()
+            self.log.info("HV: Voltage: %f"%float(V))
+            time.sleep(3)
         self.log.info("HV: Finished ramp up!")
 
     def ramp_down(self):
         self.log.info("HV: Ramping down HV - please wait!")
-        v_ini=read_current_voltage(self.hv)
+        v_ini=self.read_current_voltage()
 
         if v_ini == "0.0":
             self.log.info("HV: HV already off!")
             return
 
         else:
-            self.log.debug("HV: Current voltage: %f"%v_ini)
+            self.log.debug("HV: Current voltage: %s"%v_ini)
             time.sleep(1)
             for i in range(len(voltages_down)): 
                 self.hv.write(voltages_down[i])
                 self.hv.readline()
-                time.sleep(2)
+                time.sleep(1)
                 V=self.read_current_voltage()
-                self.log.info("HV: Voltage: %f"%V)
-                time.sleep(5)
+                self.log.info("HV: Voltage: %f"%float(V))
+                time.sleep(3)
         self.log.info("HV: Finished ramp down! Good bye!")
 
 
@@ -200,28 +201,28 @@ class HV:
                 self.hv.close()
                 self.log.info("HV: Connection to HV closed.")
 
-    def take_data(HV):
+    def take_data(self):
       
         V_curr = float(self.read_current_voltage())
-        self.log.info("HV: take_data: voltage: %s %f"%(V_curr))
+        self.log.info("HV: take_data: voltage: %f"%(V_curr))
 
         if V_curr == 0.0:
             self.hv.write(s_polarity_pos)
-            self.log.info("HV: take_data: s_polarity_pos: %s %f"%(self.hv.readline()))
+            self.log.info("HV: take_data: s_polarity_pos: %s"%(str(self.hv.readline())))
             self.ramp_up()
         elif V_curr >= 1000.0:
             pass
         else:
             self.hv.write(s_voltage_0)
-            self.log.info("HV: take_data: s_voltage_0: %s %f"%(self.hv.readline()))
+            self.log.info("HV: take_data: s_voltage_0: %s"%(self.hv.readline()))
             self.hv.write(s_polarity_pos)
-            self.log.info("HV: take_data: s_polarity_pos: %s %f"%(self.hv.readline()))
+            self.log.info("HV: take_data: s_polarity_pos: %s"%(self.hv.readline()))
             self.ramp_up()
         
         while True:
 
             V=self.read_current_voltage()
-            self.log.info("HV: take_data: voltage: %s %f"%(V))
+            self.log.info("HV: take_data: voltage: %f"%float(V))
 
             time.sleep(1)
 ###################################################################################################
@@ -235,7 +236,7 @@ if __name__=="__main__":
 
     while True:
         try:
-            hv=HV()
+            hv=HV(port, logger)
             hv.take_data()
         except (KeyboardInterrupt, SystemExit):
             traceback.print_exc()
