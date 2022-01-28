@@ -255,6 +255,9 @@ class triggerConfigWidget(MyGui.QWidget):
         	self.chooseDelay.setValidator(QtGui.QIntValidator(-1000000,1000000))
         self.chooseDelay.textChanged.connect(self.enable)
 
+        labelHintDelay = MyGui.QLabel()
+        labelHintDelay.setText("Note: + will shift trigger to left. Default \nat 0 is a 10% shift to right. Make sure you \ndon't choose a value larger than 10% \notherwise the waveform is shifted out \nof the analysis window.")
+
         c=0
         grid.addWidget(labelChannel,          c,0) # y, x
         grid.addWidget(self.chooseChannel,    c,1) # y, x
@@ -270,6 +273,8 @@ class triggerConfigWidget(MyGui.QWidget):
         c+=1
         grid.addWidget(labelDelay,            c,0) # y, x
         grid.addWidget(self.chooseDelay,      c,1) # y, x
+        c+=1
+        grid.addWidget(labelHintDelay,            c,1)
         
 
         wrapperLayout.addLayout(grid)
