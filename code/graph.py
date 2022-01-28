@@ -55,7 +55,7 @@ class plotWidget(FigureCanvas):
         self.layout()
         
         # test text at start
-        text="Temperatures:\n"+r" $-^{\circ} \,\,\,-^{\circ}$"+"\n"+"$-^{\circ} \,\,\, -^{\circ}$"+"\n\n"
+        text="Temperatures:\n"+r" $-^{\circ} \,\,\,-^{\circ}$"+"\n"+"$-^{\circ}$"+"\n\n"
         text+="Light:\n - mV\n\n"
         text+="Freq/Int: \n"+" - Hz "+"\n"+" - ns \n\n"
         text+="Rate: " + " - Hz \n\n"
@@ -318,17 +318,16 @@ class plotWidget(FigureCanvas):
                                 (self.daq.temperatures[-1][1], 
                                  self.daq.temperatures[-1][2], ) + \
                                  "\n" + \
-                                 r"$%.1f^{\circ}$ $%.1f^{\circ}$" % \
-                                (self.daq.temperatures[-1][3], 
-                                 self.daq.temperatures[-1][4])+\
+                                 r"$%.1f^{\circ}$" % \
+                                (self.daq.temperatures[-1][3])+\
                                 "\n\n"
                     else:
                         self.log.error("Not all temperature sensors read out. One might be broken or you have to disconnect and connect the USB Hygrosens device! %s" % (str(self.daq.temperatures[-1])))
                         text+="Temperatures:\n"+r" $-^{\circ} \,\,\,-^{\circ}$"+\
-                            "\n"+"$-^{\circ} \,\,\, -^{\circ}$"+"\n\n"
+                            "\n"+"$-^{\circ}$"+"\n\n"
                 else:
                     text+="Temperatures:\n"+r" $-^{\circ} \,\,\,-^{\circ}$"+\
-                            "\n"+"$-^{\circ} \,\,\, -^{\circ}$"+"\n\n"
+                            "\n"+"$-^{\circ}$"+"\n\n"
 
 
                 if self.daq.channelEnabled["C"] and len(self.daq.channelC)>0:
