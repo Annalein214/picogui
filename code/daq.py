@@ -598,6 +598,7 @@ class myPicoScope(QThread):
                     self.temperatures.append(np.array(a))
                     self.lastTempSaved=endBlock
                 except Exception as e:
+                    print (traceback.print_exc())
                     self.out.error("Cannot read temperature %s"%e)
                 # check timing precision
                 if self.calcCtimes:
