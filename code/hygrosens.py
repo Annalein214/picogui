@@ -4,21 +4,21 @@ from __future__ import absolute_import
 import serial, sys, glob
 import numpy as np
 
+port="/dev/ttyUSB0"
+
 class Hygrosens:
 
-    def readDevice(self,port=None):
-        if port==None: port=self.port
+    def readDevice(self):
         # the device gives a 11 bit value back which goes from -50 to +200 degrees Celsius
         # that is the reason for the following factor and the substraction of 50 later on
         factor = 2048.0/200 
-        s.write("t")
-        raw = s.readline()
+        self.device.write("t")
+        raw = self.device.readline()
         temperatures=[round(int(i,16)/factor-50,2) for i in raw.split(";")[1:5]]
         self.log.debug("HY: Raw: %s"% raw)
         #print(temperatures)
         #print(";".join(["%f" % i for i in temperatures]))
         self.log.debug("HY: Temp: %s"% (";".join(["%f" % i for i in temperatures])))
-        s.close()
         return np.array(temperatures)
 
     def initialise(self,):
@@ -30,12 +30,13 @@ class Hygrosens:
             self.log.info("HY: Test Port:%s"% port)
             self.port=port
             self.initialise()
-            t=self.readDevice(port)
+            temperatures=self.readDevice()
             if len(temperatures)==0: raise Exception("Wrong device, I assume. Temperature array empty.")
             return True
         except Exception as e:
             self.port=None
-            try: self.device.close() except: pass
+            try: self.device.close() 
+            except: pass
             self.device=None
             self.log.info("HY: Error testing port %s: %s" %( port, e))
             return False
@@ -46,10 +47,10 @@ class Hygrosens:
                 self.device.close()
                 self.log.info("HY: Connection to Encoder closed!")
 
-    def __init__(self, log,port=None):
-        self.port=None
+    def __init__(self, log,port=port):
+        self.port=port
         self.log=log
-
+        self.log.info("HY: Port given: %s"%port)
         if port != None:
             test=self.test(port)
             if test == False:
@@ -88,7 +89,7 @@ if __name__ == "__main__":
 
     from log import log
     log=log(save=False, level="debug")
-    t=Hygrosens(log)
+    t=Hygrosens(log, port=port)
 
     print (t.readDevice())
 
