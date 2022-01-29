@@ -5,7 +5,7 @@ import serial, time, sys, traceback, os
 from glob import glob
 
 sys.path.append("../code/")
-from log import log
+from log import log, formatTimeforLog
 
 ###################################################################################################
 # Configuration
@@ -19,17 +19,44 @@ log_dir=os.getcwd()+"/log/" # current directory
 log_level="debug" # debug, info
 
 ###################################################################################################
-# Definitions
+# data table
+
+class DATA:
+
+    def __init__(self,log_dir, ):
+        #self.log_dir=log_dir
+        #self.i=0
+
+        t=time.time()
+        #self.starttime=t
+        #self.time=t
+
+        self.filename=self.log_dir+"/"+formatTimeforLog(t)+"_%03d.csv" % (self.i)
+        f=open(self.filename, "a")
+        f.write("Timestamp, Voltage / V\n")
+        f.close()
+        self.time=t
+
+    def save(self,voltage):
+        t=time.time()
+        f=open(self.filename, "a")
+        f.write("%ld,%d\n" % (t,voltage))
+        f.close()
+    
 
 
+
+
+    
 
 ###################################################################################################
 
 
 class HV:
-    def __init__(self,port, log):
+    def __init__(self,port, log, data):
         self.port=port
         self.log=log
+        self.data=data
 
         # check if given port is ok
         if port != None:
@@ -102,6 +129,7 @@ class HV:
             v_curr=self.hv.readline()
             ck=self.check_answer(v_curr)
             if ck == 1:
+                self.data.save(float(v_curr))
                 return v_curr
                 break
             elif i==0:
@@ -222,9 +250,11 @@ if __name__=="__main__":
                     end="fw.log", # use different ending than pico main script, to make sure there is no override
                     )
 
+    data=DATE(log_dir)
+
     while True:
         try:
-            hv=HV(port, logger)
+            hv=HV(port, logger, data)
             hv.take_data()
         except (KeyboardInterrupt, SystemExit):
             traceback.print_exc()
