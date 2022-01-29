@@ -10,6 +10,8 @@ from log import log
 ###################################################################################################
 # Configuration
 
+VOLTAGE=1100
+
 port="/dev/ttyUSB1"
 
 log_dir=os.getcwd()+"/log/" # current directory
@@ -19,30 +21,6 @@ log_level="debug" # debug, info
 ###################################################################################################
 # Definitions
 
-r_voltage = bytearray([0x55, 0x31, 0x0D, 0x0A])
-r_set_voltage = bytearray([0x55, 0x31, 0x0D, 0x0A])
-s_voltage_0 = bytearray([0x44, 0x31, 0x3D, 0x30, 0x0D, 0x0A])
-s_voltage_100 = bytearray([0x44, 0x31, 0x3D, 0x31, 0x30, 0x30, 0x0D, 0x0A])
-s_voltage_200 = bytearray([0x44, 0x31, 0x3D, 0x32, 0x30, 0x30, 0x0D, 0x0A])
-s_voltage_300 = bytearray([0x44, 0x31, 0x3D, 0x33, 0x30, 0x30, 0x0D, 0x0A])
-s_voltage_400 = bytearray([0x44, 0x31, 0x3D, 0x34, 0x30, 0x30, 0x0D, 0x0A])
-s_voltage_500 = bytearray([0x44, 0x31, 0x3D, 0x35, 0x30, 0x30, 0x0D, 0x0A])
-s_voltage_600 = bytearray([0x44, 0x31, 0x3D, 0x36, 0x30, 0x30, 0x0D, 0x0A])
-s_voltage_700 = bytearray([0x44, 0x31, 0x3D, 0x37, 0x30, 0x30, 0x0D, 0x0A])
-s_voltage_800 = bytearray([0x44, 0x31, 0x3D, 0x38, 0x30, 0x30, 0x0D, 0x0A])
-s_voltage_900 = bytearray([0x44, 0x31, 0x3D, 0x39, 0x30, 0x30, 0x0D, 0x0A])
-s_voltage_1000 = bytearray([0x44, 0x31, 0x3D, 0x31, 0x30, 0x30, 0x30, 0x0D, 0x0A])
-s_voltage_1100= bytearray([0x44, 0x31, 0x3D, 0x31, 0x31, 0x30, 0x30, 0x0D, 0x0A])
-r_polarity = bytearray([0x50, 0x31, 0x0D, 0x0A])
-s_polarity_pos = bytearray([0x50, 0x31, 0x3D, 0x2B, 0x0D, 0x0A])
-
-voltages_up = [s_voltage_100, s_voltage_200, s_voltage_300, s_voltage_400, 
-               s_voltage_500, s_voltage_600, s_voltage_700, s_voltage_800, 
-               s_voltage_900, s_voltage_1000, s_voltage_1100]
-
-voltages_down = [s_voltage_1000, s_voltage_900, s_voltage_800, s_voltage_700, 
-                 s_voltage_600, s_voltage_500, s_voltage_400, s_voltage_300, 
-                 s_voltage_200, s_voltage_100, s_voltage_0]
 
 
 ###################################################################################################
@@ -162,38 +140,51 @@ class HV:
             self.hv.write(s_voltage_0)
             self.hv.readline()
 
-    def ramp_up(self):
-        self.log.info("HV: Ramping up HV - please wait!")    
-        time.sleep(1)
-        for i in range(len(voltages_up)): 
-            self.hv.write(voltages_up[i])
-            self.log.debug("HV: Device output: %s" % str(self.hv.readline()))
-            time.sleep(1)
-            V=self.read_current_voltage()
-            self.log.info("HV: Voltage: %f"%float(V))
-            time.sleep(3)
-        self.log.info("HV: Finished ramp up!")
+    def getVoltageByteArray(self,voltage):
+        lyst=list([0x44, 0x31, 0x3D])
+        for letter in str(voltage):
+            lyst.append(0x30+int(letter))
+        lyst.extend([0x0D, 0x0A])
+        byteAarray=bytearray(lyst)
+        return byteAarray # format: D1=1000\r\n
 
-    def ramp_down(self):
-        self.log.info("HV: Ramping down HV - please wait!")
+    def ramp(self, goal):
+        self.log.info("HV: Adjusting HV, please wait ...")
+        # current voltage: 
         v_ini=self.read_current_voltage()
 
-        if v_ini == "0.0":
-            self.log.info("HV: HV already off!")
-            return
+        if v_ini >= goal: 
+            self.log.debug("HV: Current value higher than new: ramp down")
+            diff=v_ini-goal
+        else: # v_ini < goal
+            self.log.debug("HV: Current value higher than new: ramp up")
+            diff=goal - v_ini
 
-        else:
-            self.log.debug("HV: Current voltage: %s"%v_ini)
-            time.sleep(1)
-            for i in range(len(voltages_down)): 
-                self.hv.write(voltages_down[i])
-                self.hv.readline()
-                time.sleep(1)
-                V=self.read_current_voltage()
-                self.log.info("HV: Voltage: %f"%float(V))
-                time.sleep(3)
-        self.log.info("HV: Finished ramp down! Good bye!")
+        steps= int(diff/100)
+        stopploop=False
 
+        for i in range(steps+2):
+            if v_ini >= goal: 
+                int_goal=v_ini-i*100
+                if int_goal<= goal: 
+                    int_goal=goal
+                    stopploop=True
+            else: # v_ini < goal
+                int_goal=v_ini+i*100
+                if int_goal>= goal: 
+                    int_goal=goal
+                    stopploop=True
+            self.log.debug("HV: Set HV to: %f" % (int_goal))
+            self.hv.write(getVoltageByteArray(int_goal))
+            self.log.debug("HV: Device output: %s" % str(self.hv.readline()))
+            time.sleep(3)
+            V=self.read_current_voltage()
+            self.log.info("HV: Voltage: %f"%float(V))
+            if abs(V-int_goal) > 100: 
+                self.log.error("Voltage adjustment seems not to work. Wanted to reach %f"%int_goal)
+            time.sleep(1) # sarah used 5 sec
+            if stopploop: break
+        self.log.info("HV: Finished adjusting HV")
 
     def close_connection(self):
         if hasattr(self, 'encoder'):
@@ -209,21 +200,18 @@ class HV:
         if V_curr == 0.0:
             self.hv.write(s_polarity_pos)
             self.log.info("HV: take_data: s_polarity_pos: %s"%(str(self.hv.readline())))
-            self.ramp_up()
-        elif V_curr >= 1000.0:
-            pass
-        else:
-            self.hv.write(s_voltage_0)
+        elif V_curr <= 0.0:
+            self.hv.write(getVoltageByteArray(0))
             self.log.info("HV: take_data: s_voltage_0: %s"%(self.hv.readline()))
             self.hv.write(s_polarity_pos)
             self.log.info("HV: take_data: s_polarity_pos: %s"%(self.hv.readline()))
-            self.ramp_up()
+        # else: v_curr > 0    
+        self.ramp(VOLTAGE)
         
+        # log HV
         while True:
-
             V=self.read_current_voltage()
             self.log.info("HV: take_data: voltage: %f"%float(V))
-
             time.sleep(1)
 ###################################################################################################
 # example how to run:
