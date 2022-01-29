@@ -27,7 +27,7 @@ from log import log
 arduino_path="/dev/ttyUSB3"
 encoder_path="/dev/ttyUSB2"
 
-log_dir=os.getcwd() # current directory
+log_dir=os.getcwd()+"/log/" # current directory
 
 log_level="debug" # debug, info
 
@@ -41,30 +41,42 @@ cold=False
 
 # bits to setup the encoder
 # the 1 has to be between '' !
-SETUP_P34=bytearray([2, '1', 0x59, 0x50, 0x33, 0x34, 0x53, 0x32, 0x3A, 0x58, 0x58, 0x03, 13, 10])
-SETUP_P35=bytearray([2, 0x31, 0x59, 0x50, 0x33, 0x35, 0x53, 0x31, 0x31, 0x3A, 0x58, 0x58, 0x03, 13, 10])
+SETUP_P34=bytearray([2, '1', 0x59, 0x50, 0x33, 0x34, 0x53, 0x32, 0x3A, 0x58, 0x58, 0x03, 13, 10]) # \x021YP34S2:XX\x03\r\n
+SETUP_P35=bytearray([2, 0x31, 0x59, 0x50, 0x33, 0x35, 0x53, 0x31, 0x31, 0x3A, 0x58, 0x58, 0x03, 13, 10]) # \x021YP35S11:XX\x03\r\n
 # command to readposition
-READPOSITION=bytearray([2, 0x31, 0x59, 0x50, 0x32, 0x32, 0x52, 0x3A, 0x58, 0x58, 0x03, 13, 10])
+READPOSITION=bytearray([2, 0x31, 0x59, 0x50, 0x32, 0x32, 0x52, 0x3A, 0x58, 0x58, 0x03, 13, 10]) # \x021YP22R:XX\x03\r\n
 
 # Filter positions
-FILTER450 = 2022
-FILTER425 = 1816
-FILTER400 = 1612
-FILTER375 = 1407
-FILTER350 = 1205
-FILTER325 = 1001
-OPEN = 796
-CLOSED = 592    # looks good by eye
-FILTER500 = 386
-FILTER475 = 179
+# full wheel: 2048 steps
+FPOS={475:  179,
+           500:  386, 
+           1:    592, # closed
+           0:    796, # open
+           325: 1001, 
+           350: 1205,
+           375: 1407,
+           400: 1612,
+           425: 1816,
+           450: 2022,
+           }
 
 # order of filters
-FILTERS = [FILTER450, FILTER475, FILTER500, CLOSED, OPEN, FILTER325, FILTER350, FILTER375, FILTER400, FILTER425]
+FORDER = [FPOS[450], 
+          FPOS[475],
+          FPOS[500],
+          FPOS[1],
+          FPOS[0],
+          FPOS[325],
+          FPOS[350],
+          FPOS[375],
+          FPOS[400],
+          FPOS[425],]
 
 # steps at warm temperatures
-NEXT = "0745"
-ADJUST = "0010"
-STEP = "0005"
+NEXT = "0745" # large distance movement, seems to be > 50% of distance between filters, 
+#             # for cold temperatures motor moves slower, thus longer movemnt required
+ADJUST = "0010" # intermediate steps
+STEP = "0005" # small slow steps
 if cold:     # steps at cold temperatures
     NEXT= "1045"
     ADJUST="0015"
@@ -77,6 +89,31 @@ if test_with_short_times:
 else:
     DELAY=3600
 ###################################################################################################
+
+
+class DATA:
+
+    def __init__(self,log_dir, ):
+        #self.log_dir=log_dir
+        #self.i=0
+
+        t=time.time()
+        #self.starttime=t
+        #self.time=t
+
+        self.filename=self.log_dir+"/"+formatTimeforLog(t)+"_%03d.csv" % (self.i)
+        f=open(self.filename, "a")
+        f.write("Timestamp, Voltage / V\n")
+        f.close()
+        self.time=t
+
+    def save(self,position):
+        t=time.time()
+        f=open(self.filename, "a")
+        f.write("%ld,%d\n" % (t,position))
+        f.close()
+###################################################################################################
+
 # arduino
 
 class Arduino:
@@ -155,14 +192,46 @@ class Arduino:
         self.arduino.write(cmmd)
         return self.arduino.readline()
 
-    def run(self):
-        self.log.info("FA: RUN")
 
+    def driveToPosition(self, goal):
+        # this is not the shortest way to get to a position, but simple for programming
+        pos=self.encoder.readPosition()
+        self.log.info("FA: dtp: current position %d"%int(pos))
+
+        i=0
+        while pos != goal:
+            # first large steps and then getting more precise
+            if abs(goal-pos)>=200: step=NEXT
+            elif abs(goal-pos)>=100 < goal: step=int(NEXT/2)
+            elif abs(goal-pos)>=4: step=STEP 
+            else: step=ADJUST
+
+            direction="+"
+            if goal < pos: direction="-"
+
+            drive=self.driveMotor(direction+step)
+            pos=self.encoder.readPosition()
+            time.sleep(1)
+            if i>100: # emergency break
+                self.log.error("FA: Needed more than 100 steps to reach goal. This is unreasonable. Stop it.")
+                break
+
+
+
+
+
+        if diff[filtndx]<4:
+                cmmdstr+=stp
+            else:
+                cmmdstr+=adj
+
+
+    def run(self):
         # make log entry
         log_string=""
         pos_old=self.encoder.readPosition()
         log_string+=str(pos_old)+"; "
-        self.log.debug("FA: Old Position %s"%pos_old)
+        self.log.debug("FA: run: Old Position %s"%pos_old)
 
         for n in range(50): 
             log_string+="%s; " % str(time.strftime("%Y_%m_%d_%H_%M_%S"))
@@ -175,7 +244,7 @@ class Arduino:
 
             log_string+="%s; " % str(time.strftime("%Y_%m_%d_%H_%M_%S"))
 
-            self.log.info("FA: Log String: %s"%log_string)
+            self.log.info("FA: run: Log String: %s"%log_string)
             log_string=""
             time.sleep(DELAY)
 
@@ -200,16 +269,16 @@ class Arduino:
             sign=[]
             self.log.debug("FA: Wrong position, searching closest filter...")
             # find the filter which is closest
-            for i in range(len(FILTERS)):
-                diff.append(abs(FILTERS[i]-int(adjPos)))
-                sign.append(getSign(FILTERS[i]-int(adjPos)))
+            for i in range(len(FORDER)):
+                diff.append(abs(FORDER[i]-int(adjPos)))
+                sign.append(getSign(FORDER[i]-int(adjPos)))
             if diff[1] > 1000:
                 diff[1]=abs(diff[0]-2048)
                 sign[1]="+"
 
             
             filtndx=diff.index(min(diff))
-            self.log.debug("FA: Closest filter is %d (index %d)"%(FILTERS[filtndx],filtndx))
+            self.log.debug("FA: Closest filter is %d (index %d)"%(FORDER[filtndx],filtndx))
 
             # adjust direction
             cmmdstr+=sign[filtndx]
@@ -225,7 +294,7 @@ class Arduino:
             adjPos=int(self.encoder.readPosition())
             self.log.debug("FA: Adjust position from: %s with step: %s"%( adjPos,cmmdstr))
 
-            if adjPos==FILTERS[filtndx]:
+            if adjPos==FORDER[filtndx]:
                 foundPos=True
                 self.log.debug("FA: Found position")
                 return adjPos
@@ -241,9 +310,10 @@ class Arduino:
 ###################################################################################################
 # encoder
 class Encoder:
-    def __init__(self,port, log):
+    def __init__(self,port, log, data):
         self.port=port
         self.log=log
+        self.data=data
 
         if port != None:
             test=self.test(port)
@@ -313,6 +383,7 @@ class Encoder:
         #print("Read Position: %s"%str(pos))
         pos=pos[2:-6] # rest is rubbish
         self.log.debug("FW: Read Position: %s"%str(pos))
+        self.data.save(int(pos))
         return pos
 
 ###################################################################################################
@@ -323,11 +394,13 @@ if __name__=="__main__":
     logger=log(save=True, level=log_level, directory=log_dir, 
                     end="fw.log", # use different ending than pico main script, to make sure there is no override
                     )
+    data=DATE(log_dir)
+
     while(True): # use this in case there is suddenly a deconnection of devices
         
         try:
             
-            encoder=Encoder(encoder_path, logger)
+            encoder=Encoder(encoder_path, logger, data)
 
             arduino=Arduino(arduino_path, encoder, logger)
 
