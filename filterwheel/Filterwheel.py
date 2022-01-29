@@ -24,14 +24,14 @@ from log import log
 
 ###################################################################################################
 # configuration
-arduino_path="/dev/ttyUSB1"
-encoder_path="/dev/ttyUSB0"
+arduino_path="/dev/ttyUSB3"
+encoder_path="/dev/ttyUSB2"
 
 log_dir=os.getcwd() # current directory
 
 log_level="debug" # debug, info
 
-test_with_short_times=True 
+test_with_short_times=False 
 
 cold=False
 
@@ -81,10 +81,16 @@ else:
 
 class Arduino:
 
-    def __init__(self,path, encoder, log):
-        self.path=path
+    def __init__(self,port, encoder, log):
+        self.port=port
         self.log=log
         self.encoder=encoder
+
+        # check if given port is ok
+        if port != None:
+            test=self.test(port)
+            if test == False:
+                self.port=None
 
         # search for the correct port  #### here  TODO
         if port==None:
@@ -114,13 +120,14 @@ class Arduino:
             return True
         except Exception as e:
             self.port=None
-            try: self.close_connection() except: pass
+            try: self.close_connection() 
+            except: pass
             self.encoder=None
             self.log.info("FW: Error testing port %s: %s" %( port, e))
             return False
 
     def connect(self,):
-        self.arduino=serial.Serial(self.path, 9600, timeout=10)
+        self.arduino=serial.Serial(self.port, 9600, timeout=10)
         self.log.debug("FA: Initiated Arduino")
         self.waitForArduino()
         self.log.info("FA: Arduino ready!")
@@ -135,7 +142,7 @@ class Arduino:
         # wait for Arduino response after boot up
         msg=""
         self.log.debug("FA: Waiting for Arduino...")
-        while msg.find("FA: Arduino is ready") == -1:
+        while msg.find("Arduino is ready") == -1:
             while self.arduino.inWaiting() == 0:
                 pass
             msg = str(self.arduino.readline()).strip('\n')
@@ -149,6 +156,7 @@ class Arduino:
         return self.arduino.readline()
 
     def run(self):
+        self.log.info("FA: RUN")
 
         # make log entry
         log_string=""
@@ -233,8 +241,8 @@ class Arduino:
 ###################################################################################################
 # encoder
 class Encoder:
-    def __init__(self,path, log):
-        self.path=path
+    def __init__(self,port, log):
+        self.port=port
         self.log=log
 
         if port != None:
@@ -271,15 +279,16 @@ class Encoder:
             return True
         except Exception as e:
             self.port=None
-            try: self.close_connection() except: pass
+            try: self.close_connection() 
+            except: pass
             self.encoder=None
             self.log.info("FW: Error testing port %s: %s" %( port, e))
             return False
 
 
     def connect(self):
-        self.encoder=serial.Serial(self.path, 115200, serial.EIGHTBITS, serial.PARITY_NONE, serial.STOPBITS_ONE)
-        self.log.debug ("FW: Initiated Encoder %s"%self.path)
+        self.encoder=serial.Serial(self.port, 115200, serial.EIGHTBITS, serial.PARITY_NONE, serial.STOPBITS_ONE)
+        self.log.debug ("FW: Initiated Encoder %s"%self.port)
         self.setupEncoder()
         self.log.info ("FW: Encoder ready!")
 

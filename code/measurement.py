@@ -393,7 +393,8 @@ class Measurement:
         
             N2=100
             if len(self.meanAmp) < N2*10: 
-                N2 = min(10,len(self.meanAmp)/10)
+                N2 = max(10,len(self.meanAmp)/10)
+                print("Corrected N2 to", N2)
             runningmean2=np.convolve(self.meanAmp, np.ones((N2,))/N2, mode='same')
             runninghours=self.hours
             runninghours=runninghours[int(0.5*N2):-int(0.5*N2)]
@@ -411,7 +412,8 @@ class Measurement:
             
             N1=100
             if len(rates) < N1*10: 
-                N1 = min(10,len(self.meanAmp)/10)
+                N1 = max(10,len(self.meanAmp)/10)
+                print("Corrected N1 to", N1)
             runningmean=np.convolve(rates, np.ones((N1,))/N1, mode='same')
             runningmeanx=self.hours
             runningmeanx=runningmeanx[int(0.5*N1):-int(0.5*N1)]
@@ -438,7 +440,7 @@ class Measurement:
         # initialise plot
         
         fig=plt.figure(figsize=(10,10))
-        subplotnumber=7
+        subplotnumber=8
         i=11 # required to get the plots at the correct position
 
         # switch off channels
@@ -449,15 +451,20 @@ class Measurement:
         if not enabledChannels["B"]:  subplotnumber-=1
         if not measCPU: subplotnumber-=1
         
+
         # produce subplots ------------------
         if enabledChannels["A"]: 
             # rate
+            print("DEBIG:", subplotnumber*100+i)
             axis = fig.add_subplot(subplotnumber*100+i); i+=1 # 1 zeile, 1 spalte, 1. plot
             # ch A mean amp
+            print("DEBIG:", subplotnumber*100+i)
             ax6=fig.add_subplot(subplotnumber*100+i); i+=1
         # temperature
         if measTemp: 
+            print("DEBIG:", subplotnumber*100+i)
             ax2=fig.add_subplot(subplotnumber*100+i); i+=1
+            print("DEBIG:", subplotnumber*100+i)
             ax8=fig.add_subplot(subplotnumber*100+i); i+=1
         # room light
         if enabledChannels["C"]: ax3=fig.add_subplot(subplotnumber*100+i); i+=1
@@ -543,7 +550,9 @@ class Measurement:
         if enabledChannels["A"]:
             axis.set_ylabel("Rate / Hz", fontsize=11)
             ax6.set_ylabel("<Ampl.> / mV", fontsize=10)
-        if measTemp: ax2.set_ylabel(r"Temp. / $^{\circ}$C", fontsize=10)
+        if measTemp: 
+            ax2.set_ylabel(r"Temp. / $^{\circ}$C", fontsize=10)
+            ax8.set_ylabel(r"Temp. / $^{\circ}$C", fontsize=10)
         if enabledChannels["C"]: ax3.set_ylabel(r"Room light / V", fontsize=10)
         if enabledChannels["B"]: ax4.set_ylabel("HV / V", fontsize=11)
         if enabledChannels["D"]: ax5.set_ylabel("<Ampl.> / mV", fontsize=10)
@@ -604,7 +613,7 @@ class Measurement:
         if measTemp:
             if borders2!=None:
                 ax2.set_ylim(borders2[0],borders2[1])
-        if enabledChannels["C"]: ax3
+        if enabledChannels["C"]:
             if borders3!=None:
                 ax3.set_ylim(borders3[0],borders3[1])
         if enabledChannels["B"]: 
@@ -762,7 +771,7 @@ class Measurement:
         histvals/=binwidth # rate / bin
 
         Y = np.array([histvals,histvals]).T.flatten()    
-        ax1.plot(X,Y, linewidth=2.,label=s.label)
+        ax1.plot(X,Y, linewidth=2.,label=s.label+"_"+figname[-3:])
         self.histAmpX=binedges
         self.histAmpY=histvals
         
