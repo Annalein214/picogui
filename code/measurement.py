@@ -1,6 +1,6 @@
 from glob import glob
 import numpy as np
-import time, datetime
+import time, datetime, traceback
 
 import matplotlib
 matplotlib.use('Agg')
@@ -14,8 +14,6 @@ DEBUG=False
 TODO:
 - include HV voltage from external logs
 - include filter wheel position from external logs
-- remove x-labels from upper plots
-
 '''
 
 def gain(x):
@@ -65,8 +63,8 @@ class Measurement:
         f.close()
         return True
 
-    def findLogFile(self):
-        files=glob(self.directory+"*"+".out")
+    def findLogFile(self, directory=dyr, ending=".out"):
+        files=glob(dyr+"*"+ending)
         files=sorted(files)
         #print files
         st=time.mktime(datetime.datetime.strptime(self.starttime, "%Y_%m_%d_%H_%M_%S").timetuple())
@@ -84,7 +82,7 @@ class Measurement:
         except:
             self.log.error("ERROR: Logfile not found")
         
-        return True
+        return self.logfile
     
     def findSettings(self):
         #print "start"
@@ -194,24 +192,25 @@ class Measurement:
                          tempLabels=["Room", "Box", "Fridge Bottom", "Fridge Top"],
                          log=None,
                          tag="",
+                         starttimelinux=0,
                 ):
         self.log=log
         self.tempLabels=tempLabels
         self.starttime=starttime
         self.label=label
         self.directory=directory
-        self.log.info("Load Measurement: %s"%self.label)
+        self.log.info("MEAS: Load Measurement: %s"%self.label)
         self.newNumpySave=newNumpySave
         self.logfile=None
 
         # find log file
         try:
             #if DEBUG: print "\tSearch log file ..."
-            self.findLogFile()
+            self.findLogFile(dyr=self.directory)
         except Exception as e:
-            self.log.info("\tError: Log file not found: %s"%str(e))
+            self.log.error("MEAS: Error: Log file not found: %s"%str(e))
             
-        if self.logfile!=None:
+        if 0: self.logfile!=None:
             
             # find comments
             #if DEBUG: print "\tFind comments ..."
@@ -227,8 +226,9 @@ class Measurement:
             except:
                 self.NettoMeasurementtime=0
                 
-            
-        
+           
+
+
 
         #if DEBUG: print "\tLoad amplitudes ..."
         files=glob(directory+starttime+tag+"*"+"_amp*") # this should give only one file, thus only data of the last hour
@@ -338,8 +338,63 @@ class Measurement:
             self.gain=gain(np.mean(self.HVs))
         else:
             self.gain=gain(1097)
-            
-        self.log.debug( "Measurement %s loaded\n"% self.label)
+
+
+        # ---------------------------------------------------------
+        # HV log            
+
+        self.saveHV=False
+        # hv log
+        try:
+            files=self.findLogFile(dyr="/data/obertacke/luminescence/picogui/hv/log/", ending=".csv")
+            data=np.loadtxt(files[-1], delimiter=",")
+            hours=int(tag[1:])
+            hvstart=hours*3600+starttimelinux
+            hvend=(hours+1)*3600+starttimelinux
+
+            hvtimes=data[:,0]
+            cut1=hvtimes>hvstart
+            cut2=hvtimes<hvend
+            cut=cut1&cut2
+            self.hvtime=hvtimes[cut]
+            self.hvvalues=data[:,1]
+
+            self.hvtimes-=self.hvtimes[0]
+            self.hvtimes/=3600
+            self.hvtimes+=self.starthourmin
+
+            self.saveHV=True
+        except:
+            traceback.print_exc()
+
+
+        self.saveFW=False
+        # fw log
+        try:
+            files=self.findLogFile(dyr="/data/obertacke/luminescence/picogui/filterwheel/log/", ending=".csv")
+            data=np.loadtxt(files[-1], delimiter=",")
+            hours=int(tag[1:])
+            fwstart=hours*3600+starttimelinux
+            fwend=(hours+1)*3600+starttimelinux
+
+            fwtimes=data[:,0]
+            cut1=fwtimes>fwstart
+            cut2=fwtimes<fwend
+            cut=cut1&cut2
+            self.fwtime=fwtimes[cut]
+            self.fwvalues=data[:,1]
+
+            self.fwtimes-=self.fwtimes[0]
+            self.fwtimes/=3600
+            self.fwtimes+=self.starthourmin
+
+            self.saveFW=True
+        except:
+            traceback.print_exc()
+
+
+        # ---------------------------------------------------------
+        self.log.debug( "MEAS: Measurement %s loaded\n"% self.label)
         
         
 #########################################################################################################
@@ -440,8 +495,8 @@ class Measurement:
         # initialise plot
         
         fig=plt.figure(figsize=(10,10))
-        subplotnumber=8
-        i=11 # required to get the plots at the correct position
+        subplotnumber=10
+        i=11 # required to get the plots at the correct position, should be always 11
 
         # switch off channels
         if not enabledChannels["A"]: subplotnumber-=2
@@ -450,7 +505,7 @@ class Measurement:
         if not enabledChannels["C"]:  subplotnumber-=1 
         if not enabledChannels["B"]:  subplotnumber-=1
         if not measCPU: subplotnumber-=1
-        
+        if not self.saveHV-=1
 
         # produce subplots ------------------
         if enabledChannels["A"]: 
@@ -474,6 +529,10 @@ class Measurement:
         if enabledChannels["D"]: ax5=fig.add_subplot(subplotnumber*100+i); i+=1
         # cpu
         if measCPU: ax7=fig.add_subplot(subplotnumber*100+i); i+=1
+        # hv
+        if self.saveHV: ax9 = fig.add_subplot(subplotnumber*100+i); i+=1
+        # filterwheel
+        if self.saveFW: ax10 = fig.add_subplot(subplotnumber*100+i); i+=1
 
         # collect axes -----------------
         axes=[]
@@ -487,7 +546,8 @@ class Measurement:
         if enabledChannels["B"]: axes.append(ax4)
         if enabledChannels["D"]: axes.append(ax5)
         if measCPU:  axes.append(ax7)
-
+        if self.saveHV: axes.append(ax9)
+        if self.saveFW: axes.append(ax10)
         # ----------------
         # fill data into axes
 
@@ -544,8 +604,12 @@ class Measurement:
                     pass
                 ax7.plot(self.cputime, self.memory,label="Memory", color="black", linewidth=2, alpha=0.7)
             except:
-                pass        
+                pass  
 
+        if self.saveHV:
+            ax9.plot(self.hvtimes, self.hvvalues, label="HV")      
+        if self.saveFW:
+            ax10.plot(self.fwtimes, self.fwvalues, label="FW")      
         # set y labels ----------
         if enabledChannels["A"]:
             axis.set_ylabel("Rate / Hz", fontsize=11)
@@ -557,7 +621,9 @@ class Measurement:
         if enabledChannels["B"]: ax4.set_ylabel("HV / V", fontsize=11)
         if enabledChannels["D"]: ax5.set_ylabel("<Ampl.> / mV", fontsize=10)
         if measCPU:  ax7.set_ylabel("PC / %", fontsize=11)
-        
+        if self.saveHV: ax9.set_ylabel("HV / V", fontsize=11)
+        if self.saveFW: ax10.set_ylabel("Position / steps", fontsize=10)
+
         # set title
         axes[0].text(0.95, 1.05, 
             "Started at %s"% (self.starttime),
@@ -764,6 +830,7 @@ class Measurement:
         amps=s.amplitudes
         amps= amps.flatten()
         amps=-np.array(amps)*1000
+        self.log.info("AmplSpectrum: min %f max %f" % (min(amps), max(amps)))
 
         histvals, binedges = np.histogram(amps, bins=binning)
         histvals=np.float64(histvals)

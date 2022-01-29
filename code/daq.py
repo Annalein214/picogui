@@ -871,6 +871,7 @@ class myPicoScope(QThread):
                   label=t,
                   log=self.out,
                   tag="_%03d"%int(self.noSaves)
+                  starttimelinux=self.starttime,
                   )
                   
         meas.plotVetoCheck(
