@@ -56,16 +56,20 @@ class Measurement:
         f.close()
         return True
 
-    def findLogFile(self, directory=dyr, ending=".out"):
-        files=glob(dyr+"*"+ending)
+    def findLogFile(self, directory="./", ending=".out"):
+        files=glob(directory+"*"+ending)
         files=sorted(files)
-        #print files
+        #print("Files:",files)
         st=time.mktime(datetime.datetime.strptime(self.starttime, "%Y_%m_%d_%H_%M_%S").timetuple())
+                
         for fyle in files:
             #print "For", fyle
             ft= fyle.split("/")[-1].split(".")[0]
+            #print("st ft fyle",self.starttime,ft, fyle)
+            #self.log.error("Note: FT=%s"%ft)
             ft=time.mktime(datetime.datetime.strptime(ft, "%Y_%m_%d_%H_%M_%S").timetuple())
             if ft>st:
+                #print("break", fyle)
                 #print "Found", ft, st, fyle, self.starttime
                 break
             logfile=fyle
@@ -199,12 +203,14 @@ class Measurement:
         # find log file
         try:
             #if DEBUG: print "\tSearch log file ..."
-            self.findLogFile(dyr=self.directory)
+            self.findLogFile(directory=self.directory)
         except Exception as e:
             self.log.error("MEAS: Error: Log file not found: %s"%str(e))
             
-        if 0: self.logfile!=None:
-            
+
+        # the following is needed to get the measurement time
+        if self.logfile!=None:
+        
             # find comments
             #if DEBUG: print "\tFind comments ..."
             self.comments=""
@@ -217,7 +223,7 @@ class Measurement:
             try:
                 self.getMeasurementTime()
             except:
-                self.NettoMeasurementtime=0
+                self.NettoMeasurementtime=1
                 
            
 
@@ -339,52 +345,81 @@ class Measurement:
         self.saveHV=False
         # hv log
         try:
-            files=self.findLogFile(dyr="/data/obertacke/luminescence/picogui/hv/log/", ending=".csv")
-            data=np.loadtxt(files[-1], delimiter=",")
+            fyle=self.findLogFile(directory="/data/obertacke/luminescence/picogui/hv/log/", ending=".csv")
+            self.log.debug("Meas: HV: Use file %s"%fyle)
+            data=np.loadtxt(fyle, delimiter=",")
             hours=int(tag[1:])
-            hvstart=hours*3600+starttimelinux
-            hvend=(hours+1)*3600+starttimelinux
-
+            md=3600 # usual 3600
+            hvstart=(hours*md)+starttimelinux
+            hvend=((hours+1)*md)+starttimelinux
+            self.log.debug("Meas: HV: start-/endtime %d %d hours %d"%(hvstart, hvend, hours))
+            self.log.debug("Meas: starttime %s %f"%(starttime,starttimelinux))
             hvtimes=data[:,0]
+
+            if len(hvtimes)==0:
+                raise Exception("No HV values in this log")
+            
             cut1=hvtimes>hvstart
             cut2=hvtimes<hvend
             cut=cut1&cut2
-            self.hvtime=hvtimes[cut]
+            self.hvtimes=hvtimes[cut]
             self.hvvalues=data[:,1]
+            self.hvvalues=self.hvvalues[cut]
 
-            self.hvtimes-=self.hvtimes[0]
-            self.hvtimes/=3600
-            self.hvtimes+=self.starthourmin
+            if len(self.hvtimes)==0:
+                raise Exception("No HV values in this time frame")
+            else:
+                self.log.debug("Meas: %d HV values in this time frame"%len(self.hvtimes))
+                
+            self.hvtimes-=hvstart
+            self.hvtimes/=3600 # first devide than add starthourmin
+            self.hvtimes+=self.starthourmin + (float(hours)*md/3600)
 
             self.saveHV=True
-        except:
-            traceback.print_exc()
+        except Exception as e:
+            e2=str(traceback.print_exc())
+            self.log.error(e2)
+            self.log.error(str(e))
+            self.saveHV=False
 
 
+        # --------------------------------------------------------
         self.saveFW=False
         # fw log
         try:
-            files=self.findLogFile(dyr="/data/obertacke/luminescence/picogui/filterwheel/log/", ending=".csv")
-            data=np.loadtxt(files[-1], delimiter=",")
+            fyle=self.findLogFile(directory="/data/obertacke/luminescence/picogui/filterwheel/log/", ending=".csv")
+            self.log.debug("Meas: FW: Use file %s"%fyle)
+            data=np.loadtxt(fyle, delimiter=",")
             hours=int(tag[1:])
-            fwstart=hours*3600+starttimelinux
-            fwend=(hours+1)*3600+starttimelinux
+            md=3600
+            fwstart=hours*md+starttimelinux
+            fwend=(hours+1)*md+starttimelinux
+            self.log.debug("Meas: FW: start-/endtime %d %d hours %d"%(fwstart, fwend, hours))
 
             fwtimes=data[:,0]
+            if len(fwtimes)==0:
+                raise Exception("No Filterwheel values in this log")
             cut1=fwtimes>fwstart
             cut2=fwtimes<fwend
             cut=cut1&cut2
-            self.fwtime=fwtimes[cut]
+            self.fwtimes=fwtimes[cut]
             self.fwvalues=data[:,1]
+            self.fwvalues=self.fwvalues[cut]
 
-            self.fwtimes-=self.fwtimes[0]
+            if len(self.fwtimes)==0:
+                raise Exception("No Filterwheel values in this time frame")
+
+            self.fwtimes-=fwstart
             self.fwtimes/=3600
-            self.fwtimes+=self.starthourmin
+            self.fwtimes+=self.starthourmin +  (float(hours)*md/3600)
+            
 
             self.saveFW=True
-        except:
-            traceback.print_exc()
-
+        except Exception as e:
+            e2=str(traceback.print_exc())
+            self.log.error(e2)
+            self.log.error(str(e))
+            self.saveFW=False
 
         # ---------------------------------------------------------
         self.log.debug( "MEAS: Measurement %s loaded\n"% self.label)
@@ -442,7 +477,7 @@ class Measurement:
             N2=100
             if len(self.meanAmp) < N2*10: 
                 N2 = max(10,len(self.meanAmp)/10)
-                print("Corrected N2 to", N2)
+                self.log.info("MEAS: Corrected N2 to %d"% N2)
             runningmean2=np.convolve(self.meanAmp, np.ones((N2,))/N2, mode='same')
             runninghours=self.hours
             runninghours=runninghours[int(0.5*N2):-int(0.5*N2)]
@@ -461,7 +496,7 @@ class Measurement:
             N1=100
             if len(rates) < N1*10: 
                 N1 = max(10,len(self.meanAmp)/10)
-                print("Corrected N1 to", N1)
+                self.log.info("MEAS: Corrected N1 to %d"%N1)
             runningmean=np.convolve(rates, np.ones((N1,))/N1, mode='same')
             runningmeanx=self.hours
             runningmeanx=runningmeanx[int(0.5*N1):-int(0.5*N1)]
@@ -498,21 +533,17 @@ class Measurement:
         if not enabledChannels["C"]:  subplotnumber-=1 
         if not enabledChannels["B"]:  subplotnumber-=1
         if not measCPU: subplotnumber-=1
-        if not self.saveHV-=1
+        if not self.saveHV: subplotnumber-=1
 
         # produce subplots ------------------
         if enabledChannels["A"]: 
             # rate
-            print("DEBIG:", subplotnumber*100+i)
             axis = fig.add_subplot(subplotnumber*100+i); i+=1 # 1 zeile, 1 spalte, 1. plot
             # ch A mean amp
-            print("DEBIG:", subplotnumber*100+i)
             ax6=fig.add_subplot(subplotnumber*100+i); i+=1
         # temperature
         if measTemp: 
-            print("DEBIG:", subplotnumber*100+i)
             ax2=fig.add_subplot(subplotnumber*100+i); i+=1
-            print("DEBIG:", subplotnumber*100+i)
             ax8=fig.add_subplot(subplotnumber*100+i); i+=1
         # room light
         if enabledChannels["C"]: ax3=fig.add_subplot(subplotnumber*100+i); i+=1

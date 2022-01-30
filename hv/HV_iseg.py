@@ -40,7 +40,7 @@ class DATA:
         #self.starttime=t
         #self.time=t
 
-        self.filename=self.log_dir+"/"+logger.formatTimeforLog(t)+"_%03d.csv" % (self.i)
+        self.filename=self.log_dir+"/"+logger.formatTimeforLog(t)+".csv"
         f=open(self.filename, "a")
         f.write("#Timestamp, Voltage / V\n")
         f.close()
@@ -267,14 +267,17 @@ if __name__=="__main__":
         try:
             hv=HV(port, logger, data)
             hv.take_data()
-        except (KeyboardInterrupt, SystemExit):
-            traceback.print_exc()
+        except (KeyboardInterrupt, SystemExit) as e:
+            e2=str(traceback.print_exc())
+            logger.error(e2)
+            logger.error(str(e))
             hv.ramp(0)
             hv.close_connection()
             break
         except serial.SerialException as e:
-            traceback.print_exc()
-            self.log.error("HV: %s"%str(e))
+            e2=str(traceback.print_exc())
+            logger.error(e2)
+            logger.error(str(e))
             hv.close_connection()
             continue
 

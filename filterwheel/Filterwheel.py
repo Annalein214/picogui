@@ -31,7 +31,7 @@ log_dir=os.getcwd()+"/log/" # current directory
 
 log_level="debug" # debug, info
 
-test_with_short_times=True 
+test_with_short_times=False 
 
 cold=True
 
@@ -75,11 +75,13 @@ FORDER = [FPOS[450],
 # steps at warm temperatures
 NEXT = "0745" # large distance movement, seems to be > 50% of distance between filters, 
 #             # for cold temperatures motor moves slower, thus longer movemnt required
-ADJUST = "0010" # intermediate steps
+ADJUST = "0007" # intermediate steps
+ADJUST2 = "0010" # bigger intermediate steps
 STEP = "0005" # small slow steps
 if cold:     # steps at cold temperatures
-    NEXT= "1045"
-    ADJUST="0030" # for sarah 15, but at -50C does not work
+    NEXT= "1075" # sarah 1045
+    ADJUST="0015" # for sarah 15, but at -50C does not work
+    ADJUST2="0030" # as fallback for higher temperatures
     STEP="0007"
 
 ERRCNT = 5
@@ -101,7 +103,7 @@ class DATA:
         #self.starttime=t
         #self.time=t
 
-        self.filename=self.log_dir+"/"+logger.formatTimeforLog(t)+"_%03d.csv" % (self.i)
+        self.filename=self.log_dir+"/"+logger.formatTimeforLog(t)+".csv"
         f=open(self.filename, "a")
         f.write("# Timestamp, Encoder Position (0-2048) \n")
         f.close()
@@ -218,14 +220,26 @@ class Arduino:
 
     def run(self):
         # make log entry
-        pos_old=self.encoder.readPosition()
-        self.log.debug("FA: run: Old Position %s"%pos_old)
 
         for n in range(50): 
-            self.log.debug("FA: run: drive %s steps"%NEXT)
-            drive=self.driveMotor("+"+NEXT)
-            pos_new=self.encoder.readPosition()
-            self.log.debug("FA: run: now at %s"%pos_new)
+
+            pos_old=int(float(self.encoder.readPosition()))
+            self.log.debug("FA: run: Old Position %d"%pos_old)
+
+            # the while loop should be obsolete for good settings, 
+            # but for extreme temperatures it does not work
+            # idea: when NEXT goes less than half the distance, then using
+            # it another time should work fine
+            diff=99
+            while diff<101: # half distance is about 105, diff needs to be smaller to repeat this loop
+                self.log.debug("FA: run: drive %s steps"%NEXT)
+                drive=self.driveMotor("+"+NEXT)
+                pos_new=int(float(self.encoder.readPosition()))
+                self.log.debug("FA: run: now at %d"%pos_new)
+                # always calculate to the starting position
+                diff=min(abs(pos_old-pos_new),abs(max(pos_old,pos_new)-2048-min(pos_old,pos_new)))
+                self.log.debug("FA: run: diff %d"%diff)
+            # fine tuning:            
             adjPos=self.adjustPosition(pos_new, adj=ADJUST, stp=STEP) ###############
             self.log.debug("FA: run: sleep")
             time.sleep(DELAY)
@@ -273,7 +287,9 @@ class Arduino:
             # step size normal or small if very close
             if diff[filtndx]<4:
                 cmmdstr+=stp
-            else:
+            elif diff[filtndx]>10:
+                cmmdstr+=ADJUST2
+            else: # 4 < x < 10
                 cmmdstr+=adj
 
             # execute
@@ -397,17 +413,23 @@ if __name__=="__main__":
             
             break
         except serial.SerialException as e:
-            traceback.print_exc()
+            e2=str(traceback.print_exc())
+            logger.error(e2)
+            logger.error(str(e))
             if 'arduino' in globals(): arduino.close_connection()
             if 'encoder' in globals(): encoder.close_connection()
             continue
-        except (KeyboardInterrupt, SystemExit, RuntimeError):
-            traceback.print_exc()
+        except (KeyboardInterrupt, SystemExit, RuntimeError) as e:
+            e2=str(traceback.print_exc())
+            logger.error(e2)
+            logger.error(str(e))
             if 'arduino' in globals(): arduino.close_connection()
             if 'encoder' in globals(): encoder.close_connection()
             break
-        except: 
-            traceback.print_exc()
+        except Exception as e: 
+            e2=str(traceback.print_exc())
+            logger.error(e2)
+            logger.error(str(e))
             if 'arduino' in globals(): arduino.close_connection()
             if 'encoder' in globals(): encoder.close_connection()
             break

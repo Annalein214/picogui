@@ -324,6 +324,7 @@ class plotWidget(FigureCanvas):
                         else: text+="ERR "
                         if self.daq.temperatures[-1][4]<50: text+=r"$%.1f^{\circ}$ " % self.daq.temperatures[-1][4]
                         else: text+="ERR "
+                        text+="\n\n"
                     else:
                         self.log.error("Not all temperature sensors read out. One might be broken or you have to disconnect and connect the USB Hygrosens device! %s" % (str(self.daq.temperatures[-1])))
                         text+="Temperatures:\n"+r" $-^{\circ} \,\,\,-^{\circ}$"+\
