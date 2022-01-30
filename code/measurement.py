@@ -182,7 +182,7 @@ class Measurement:
                          #temp=None,
                          newNumpySave=True,
                          otempmin=False,
-                         tempLabels=["Room", "Box", "Fridge Bottom", "Fridge Top"],
+                         tempLabels=["1 (Room)", "2", "3", "4"],
                          log=None,
                          tag="",
                          starttimelinux=0,
@@ -689,7 +689,9 @@ class Measurement:
                 ax7.set_ylim(borders7[0],borders7[1])
                 
         # set legends ---------------
-        if measTemp: ax2.legend(loc="best",ncol=3, prop={"size":6})
+        if measTemp: 
+            ax2.legend(loc="best",ncol=3, prop={"size":6})
+            ax8.legend(loc="best",ncol=3, prop={"size":6})
         if enabledChannels["A"]:  
             axis.legend(loc="best",ncol=3, prop={"size":6})
             ax6.legend(loc="best",ncol=3, prop={"size":6})
@@ -825,8 +827,15 @@ class Measurement:
         i=0
         amps=s.amplitudes
         amps= amps.flatten()
-        amps=-np.array(amps)*1000
-        self.log.info("AmplSpectrum: min %f max %f" % (min(amps), max(amps)))
+        self.log.info("AmplSpectrum: self.amplitudes %d flattened %d" % (len(s.amplitudes), len(amps)))
+        self.log.info("AmplSpectrum: min %f max %f mean %f" % (min(amps), max(amps), np.mean(amps)))
+        # if original: min/max: -0.09, -0.006
+        # if adjusted: min/max: +6, +90
+        if np.mean(amps)<0: # probably not adjusted # TODO take it out once bug solved
+            self.log.info("AmplSpectrum: Adjust amplitudes, seem to have not been adjusted before")
+            amps=-np.array(amps)*1000
+        self.log.info("AmplSpectrum: min %f max %f mean %f" % (min(amps), max(amps), np.mean(amps)))
+        
 
         histvals, binedges = np.histogram(amps, bins=binning)
         histvals=np.float64(histvals)
