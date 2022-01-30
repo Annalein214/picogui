@@ -31,9 +31,9 @@ log_dir=os.getcwd()+"/log/" # current directory
 
 log_level="debug" # debug, info
 
-test_with_short_times=False 
+test_with_short_times=True 
 
-cold=False
+cold=True
 
 
 ###################################################################################################
@@ -79,7 +79,7 @@ ADJUST = "0010" # intermediate steps
 STEP = "0005" # small slow steps
 if cold:     # steps at cold temperatures
     NEXT= "1045"
-    ADJUST="0015"
+    ADJUST="0030" # for sarah 15, but at -50C does not work
     STEP="0007"
 
 ERRCNT = 5
@@ -93,24 +93,24 @@ else:
 
 class DATA:
 
-    def __init__(self,log_dir, ):
-        #self.log_dir=log_dir
-        #self.i=0
+    def __init__(self,log_dir,logger ):
+        self.log_dir=log_dir
+        self.i=0
 
         t=time.time()
         #self.starttime=t
         #self.time=t
 
-        self.filename=self.log_dir+"/"+formatTimeforLog(t)+"_%03d.csv" % (self.i)
+        self.filename=self.log_dir+"/"+logger.formatTimeforLog(t)+"_%03d.csv" % (self.i)
         f=open(self.filename, "a")
-        f.write("Timestamp, Voltage / V\n")
+        f.write("# Timestamp, Encoder Position (0-2048) \n")
         f.close()
         self.time=t
 
     def save(self,position):
         t=time.time()
         f=open(self.filename, "a")
-        f.write("%ld,%d\n" % (t,position))
+        f.write("%f,%d\n" % (t,position))
         f.close()
 ###################################################################################################
 
@@ -216,36 +216,18 @@ class Arduino:
                 self.log.error("FA: Needed more than 100 steps to reach goal. This is unreasonable. Stop it.")
                 break
 
-
-
-
-
-        if diff[filtndx]<4:
-                cmmdstr+=stp
-            else:
-                cmmdstr+=adj
-
-
     def run(self):
         # make log entry
-        log_string=""
         pos_old=self.encoder.readPosition()
-        log_string+=str(pos_old)+"; "
         self.log.debug("FA: run: Old Position %s"%pos_old)
 
         for n in range(50): 
-            log_string+="%s; " % str(time.strftime("%Y_%m_%d_%H_%M_%S"))
+            self.log.debug("FA: run: drive %s steps"%NEXT)
             drive=self.driveMotor("+"+NEXT)
-            log_string+="%s; " % (drive.strip('\n'))
             pos_new=self.encoder.readPosition()
-            log_string+="%s; " % (str(pos_new))
+            self.log.debug("FA: run: now at %s"%pos_new)
             adjPos=self.adjustPosition(pos_new, adj=ADJUST, stp=STEP) ###############
-            log_string+="%s; " % str(adjPos)
-
-            log_string+="%s; " % str(time.strftime("%Y_%m_%d_%H_%M_%S"))
-
-            self.log.info("FA: run: Log String: %s"%log_string)
-            log_string=""
+            self.log.debug("FA: run: sleep")
             time.sleep(DELAY)
 
     def adjustPosition(self, 
@@ -253,6 +235,11 @@ class Arduino:
                        adj, # large step size
                        stp, # small step size
                        ): 
+
+        '''
+        Note: sometimes it takes several rounds before the encoder value 
+        changes, still try to keep NEXT as small as possible to not overshoot
+        '''
 
         def getSign(x):
             if x<0:
@@ -292,7 +279,7 @@ class Arduino:
             # execute
             ret=self.driveMotor(cmmdstr)
             adjPos=int(self.encoder.readPosition())
-            self.log.debug("FA: Adjust position from: %s with step: %s"%( adjPos,cmmdstr))
+            self.log.debug("FA: Adjust position to: %s with step: %s"%( adjPos,cmmdstr))
 
             if adjPos==FORDER[filtndx]:
                 foundPos=True
@@ -394,7 +381,7 @@ if __name__=="__main__":
     logger=log(save=True, level=log_level, directory=log_dir, 
                     end="fw.log", # use different ending than pico main script, to make sure there is no override
                     )
-    data=DATE(log_dir)
+    data=DATA(log_dir, logger)
 
     while(True): # use this in case there is suddenly a deconnection of devices
         

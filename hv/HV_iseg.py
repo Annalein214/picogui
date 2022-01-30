@@ -5,7 +5,7 @@ import serial, time, sys, traceback, os
 from glob import glob
 
 sys.path.append("../code/")
-from log import log, formatTimeforLog
+from log import log
 
 ###################################################################################################
 # Configuration
@@ -18,29 +18,38 @@ log_dir=os.getcwd()+"/log/" # current directory
 
 log_level="debug" # debug, info
 
+
+###################################################################################################
+# constants
+
+r_voltage = bytearray([0x55, 0x31, 0x0D, 0x0A])
+r_set_voltage = bytearray([0x55, 0x31, 0x0D, 0x0A])
+r_polarity = bytearray([0x50, 0x31, 0x0D, 0x0A])
+s_polarity_pos = bytearray([0x50, 0x31, 0x3D, 0x2B, 0x0D, 0x0A])
 ###################################################################################################
 # data table
 
 class DATA:
 
-    def __init__(self,log_dir, ):
-        #self.log_dir=log_dir
-        #self.i=0
+    def __init__(self,log_dir, logger):
+        self.log_dir=log_dir
+        self.i=0
+        
 
         t=time.time()
         #self.starttime=t
         #self.time=t
 
-        self.filename=self.log_dir+"/"+formatTimeforLog(t)+"_%03d.csv" % (self.i)
+        self.filename=self.log_dir+"/"+logger.formatTimeforLog(t)+"_%03d.csv" % (self.i)
         f=open(self.filename, "a")
-        f.write("Timestamp, Voltage / V\n")
+        f.write("#Timestamp, Voltage / V\n")
         f.close()
         self.time=t
 
     def save(self,voltage):
         t=time.time()
         f=open(self.filename, "a")
-        f.write("%ld,%d\n" % (t,voltage))
+        f.write("%f,%d\n" % (t,voltage))
         f.close()
     
 
@@ -53,9 +62,9 @@ class DATA:
 
 
 class HV:
-    def __init__(self,port, log, data):
+    def __init__(self,port, logger, data):
         self.port=port
-        self.log=log
+        self.log=logger
         self.data=data
 
         # check if given port is ok
@@ -177,36 +186,38 @@ class HV:
         return byteAarray # format: D1=1000\r\n
 
     def ramp(self, goal):
-        self.log.info("HV: Adjusting HV, please wait ...")
+        self.log.info("HV: Adjusting HV to %d V, please wait ..."% goal)
         # current voltage: 
-        v_ini=self.read_current_voltage()
+        v_ini=int(float(self.read_current_voltage()))
 
         if v_ini >= goal: 
             self.log.debug("HV: Current value higher than new: ramp down")
-            diff=v_ini-goal
+            diff=int(float(v_ini))-goal
         else: # v_ini < goal
-            self.log.debug("HV: Current value higher than new: ramp up")
+            self.log.debug("HV: Current value lower than new: ramp up")
             diff=goal - v_ini
 
         steps= int(diff/100)
         stopploop=False
 
         for i in range(steps+2):
-            if v_ini >= goal: 
+            if v_ini > goal: 
                 int_goal=v_ini-i*100
                 if int_goal<= goal: 
                     int_goal=goal
                     stopploop=True
-            else: # v_ini < goal
+            elif v_ini < goal: # v_ini < goal
                 int_goal=v_ini+i*100
                 if int_goal>= goal: 
                     int_goal=goal
                     stopploop=True
+            else: # vini=goal:
+                continue
             self.log.debug("HV: Set HV to: %f" % (int_goal))
-            self.hv.write(getVoltageByteArray(int_goal))
+            self.hv.write(self.getVoltageByteArray(int_goal))
             self.log.debug("HV: Device output: %s" % str(self.hv.readline()))
             time.sleep(3)
-            V=self.read_current_voltage()
+            V=int(float(self.read_current_voltage()))
             self.log.info("HV: Voltage: %f"%float(V))
             if abs(V-int_goal) > 100: 
                 self.log.error("Voltage adjustment seems not to work. Wanted to reach %f"%int_goal)
@@ -250,7 +261,7 @@ if __name__=="__main__":
                     end="fw.log", # use different ending than pico main script, to make sure there is no override
                     )
 
-    data=DATE(log_dir)
+    data=DATA(log_dir, logger)
 
     while True:
         try:
@@ -258,7 +269,7 @@ if __name__=="__main__":
             hv.take_data()
         except (KeyboardInterrupt, SystemExit):
             traceback.print_exc()
-            hv.ramp_down()
+            hv.ramp(0)
             hv.close_connection()
             break
         except serial.SerialException as e:

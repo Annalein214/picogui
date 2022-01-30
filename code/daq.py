@@ -870,7 +870,7 @@ class myPicoScope(QThread):
                   directory=self.saveDirectory,
                   label=t,
                   log=self.out,
-                  tag="_%03d"%int(self.noSaves)
+                  tag="_%03d"%int(self.noSaves),
                   starttimelinux=self.starttime,
                   )
                   
