@@ -9,13 +9,6 @@ from matplotlib.ticker import FormatStrFormatter
 
 DEBUG=False
 
-
-'''
-TODO:
-- include HV voltage from external logs
-- include filter wheel position from external logs
-'''
-
 def gain(x):
    return 4.3820810269624345e-9*x**(0.50531132059975381*10)
 
@@ -565,9 +558,12 @@ class Measurement:
         if measTemp: 
             try:
                 ax8.plot(self.temptimes, self.temp1,label=self.tempLabels[0], color="blue", alpha=0.7) # room temperature, plot separately
-                ax2.plot(self.temptimes, self.temp2,label=self.tempLabels[1], color="green", alpha=0.7)
-                ax2.plot(self.temptimes, self.temp3,label=self.tempLabels[2], color="cyan", alpha=0.7)
-                #ax2.plot(self.temptimes, self.temp4,label=self.tempLabels[3], color="mediumslateblue", alpha=0.7) # sensor broken
+                if max(self.temp2)<50: # broken sensor gives values > 4000
+                    ax2.plot(self.temptimes, self.temp2,label=self.tempLabels[1], color="green", alpha=0.7) # sensor broken ?
+                if max(self.temp3)<50:
+                    ax2.plot(self.temptimes, self.temp3,label=self.tempLabels[2], color="cyan", alpha=0.7)
+                if max(self.temp4)<50:
+                    ax2.plot(self.temptimes, self.temp4,label=self.tempLabels[3], color="mediumslateblue", alpha=0.7) # sensor broken
             except Exception as e: 
                 #print e
                 pass
