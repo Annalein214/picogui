@@ -31,7 +31,7 @@ log_dir=os.getcwd()+"/log/" # current directory
 
 log_level="debug" # debug, info
 
-test_with_short_times=False 
+test_with_short_times=1 
 
 cold=True
 
@@ -48,16 +48,16 @@ READPOSITION=bytearray([2, 0x31, 0x59, 0x50, 0x32, 0x32, 0x52, 0x3A, 0x58, 0x58,
 
 # Filter positions
 # full wheel: 2048 steps
-FPOS={475:  179,
-           500:  386, 
-           1:    592, # closed
-           0:    796, # open
-           325: 1001, 
-           350: 1205,
-           375: 1407,
-           400: 1612,
-           425: 1816,
-           450: 2022,
+FPOS={     475:  124,#179,
+           500:  328,#386, 
+           1:    541,#592, # sarah closed
+           0:    737,#796, # sarah open, anna closed
+           325: 952,#1001, # anna open 
+           350: 1150,#1205,
+           375: 1360,#1407,
+           400: 1560,#1612,
+           425: 1765,#1816,
+           450: 1969,#2022,
            }
 
 # order of filters
