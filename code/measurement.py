@@ -345,7 +345,9 @@ class Measurement:
         self.saveHV=False
         # hv log
         try:
-            fyle=self.findLogFile(directory="/data/obertacke/luminescence/picogui/hv/log/", ending=".csv")
+            fyles=glob("/data/obertacke/luminescence/picogui/hv/log/*.csv")
+            fyles=sorted(fyles)
+            fyle=fyles[-1]
             self.log.debug("Meas: HV: Use file %s"%fyle)
             data=np.loadtxt(fyle, delimiter=",")
             hours=int(tag[1:])
@@ -387,7 +389,9 @@ class Measurement:
         self.saveFW=False
         # fw log
         try:
-            fyle=self.findLogFile(directory="/data/obertacke/luminescence/picogui/filterwheel/log/", ending=".csv")
+            fyles=glob("/data/obertacke/luminescence/picogui/filterwheel/log/*.csv")
+            fyles=sorted(fyles)
+            fyle=fyles[-1]
             self.log.debug("Meas: FW: Use file %s"%fyle)
             data=np.loadtxt(fyle, delimiter=",")
             hours=int(tag[1:])
