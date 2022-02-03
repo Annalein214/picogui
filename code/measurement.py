@@ -399,10 +399,12 @@ class Measurement:
             fwstart=hours*md+starttimelinux
             fwend=(hours+1)*md+starttimelinux
             self.log.debug("Meas: FW: start-/endtime %d %d hours %d"%(fwstart, fwend, hours))
-
+            self.log.debug("Meas: starttime %s %f"%(starttime,starttimelinux))
             fwtimes=data[:,0]
+
             if len(fwtimes)==0:
                 raise Exception("No Filterwheel values in this log")
+
             cut1=fwtimes>fwstart
             cut2=fwtimes<fwend
             cut=cut1&cut2
@@ -412,6 +414,8 @@ class Measurement:
 
             if len(self.fwtimes)==0:
                 raise Exception("No Filterwheel values in this time frame")
+            else:
+                self.log.debug("Meas: %d FW values in this time frame"%len(self.fwtimes))
 
             self.fwtimes-=fwstart
             self.fwtimes/=3600
@@ -668,6 +672,12 @@ class Measurement:
         axes[-1].set_xlabel("Day of month / Hour of Day", fontsize=15)
 
         # adjust quantity of x lables
+        try:
+            xloc = matplotlib.pyplot.MaxNLocator(6)
+            # nicer human readable ticks with hour and decimals
+            axis.set_major_locator(xloc)
+        except:
+            self.log.debug("MEAS: xloc did not work")
         labels=axis.get_xticks().tolist()
         ticks=np.arange(int(labels[0]), int(labels[-1])+xlabeltime, xlabeltime)
         l1=ticks%24
