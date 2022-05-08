@@ -768,7 +768,7 @@ class myPicoScope(QThread):
                 i_debug=0
                 for waveform in data:
                     ### old
-                    if 0:
+                    if 1:
                         #baseline=capture[0: int(len(capture)*0.05)]
                         #baseline=np.median(baseline)
                         baseline=0
@@ -789,6 +789,7 @@ class myPicoScope(QThread):
                         #area*=self.interval
                         #areas2.append(sum(area))
                     else:
+                        # this version gives strange spe peak, but nice pedastal, previous version seems much more stable
                         # spoke with John from Mainz about this algo
                         #preTriggerSamples=int(len(waveform)*0.09)
                         #baselineSamples=waveform[0:preTriggerSamples]
