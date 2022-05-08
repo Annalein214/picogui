@@ -48,6 +48,7 @@ class Hygrosens:
                 self.log.info("HY: Connection to Encoder closed!")
 
     def __init__(self, log,port=port):
+        print("TEST HY")
         self.port=port
         self.log=log
         self.log.info("HY: Port given: %s"%port)
