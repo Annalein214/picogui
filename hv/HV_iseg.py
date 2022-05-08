@@ -7,10 +7,29 @@ from glob import glob
 sys.path.append("../code/")
 from log import log
 
+
+###################################################################################################
+#
+# iseg THQ
+# Ch1: dpr 3kV 4mA
+# Ch2: cpn 20kV 0.5mA
+#
+# The commands are transmitted in the ASCII character set. The command end is formed with the character string <CR><LF>.
+# <CR> (0x0D) the carriage return character
+# <LF> (0x0A) the line feed character
+# In the event of an error (incorrect input, wrong channel, invalid value) "???? <CR><LF>" is returned.
+# to adjust channel replace 1 by 2 in the following:
+# Read measured voltage channel 1 -- U1<CR><LF> -- {Measured voltage}<CR><LF> [V]
+# Write set voltage channel 1 -- D1={voltage}<CR><LF> -- 0 ≤ voltage ≤ Vnom
+# Read Polarity channel 1 -- P1<CR><LF> -- {+|-}<CR><LF
+# Write Polarity channel 1 -- P1={+|-}<CR><LF>
+# Read device status channel 1 -- S1<CR><LF> -- HL<CR><LF> hex code ➜ see 9.7 Device status
+#
 ###################################################################################################
 # Configuration
 
-VOLTAGE=1100
+VOLTAGE=1200
+POLARITY="negative"
 
 port="/dev/ttyUSB1"
 
@@ -22,14 +41,37 @@ log_level="debug" # debug, info
 ###################################################################################################
 # constants
 
-r_voltage = bytearray([0x55, 0x31, 0x0D, 0x0A])
-r_set_voltage = bytearray([0x55, 0x31, 0x0D, 0x0A])
-r_polarity = bytearray([0x50, 0x31, 0x0D, 0x0A])
-s_polarity_pos = bytearray([0x50, 0x31, 0x3D, 0x2B, 0x0D, 0x0A])
+# ascii https://ascii.cl
+CR=0x0D
+LF=0x0A
+plus=0x2B
+minus=0x2D
+equal=0x3D
+P=0x50
+U=0x55
+D=0x44
+one=0x31
+two=0x32
+Ch1=one
+
+# r=read
+# s=set
+# you can read measured or set voltage 
+r_meas_voltage = bytearray([U, Ch1, CR, LF]) # command send to get voltage back
+r_set_voltage = bytearray([D, Ch1, CR, LF])
+r_polarity = bytearray([P, Ch1, CR, LF])
+s_polarity_pos = bytearray([P, Ch1, equal, plus, CR, LF]) 
+s_polarity_neg = bytearray([P, Ch1, equal, minus, CR, LF]) 
+
+if POLARITY=="negative":
+    POLARITY=s_polarity_neg
+else:
+    POLARITY=s_polarity_pos
 ###################################################################################################
 # data table
 
 class DATA:
+    # class to store and save data
 
     def __init__(self,log_dir, logger):
         self.log_dir=log_dir
@@ -51,10 +93,6 @@ class DATA:
         f=open(self.filename, "a")
         f.write("%f,%d\n" % (t,voltage))
         f.close()
-    
-
-
-
 
     
 
@@ -62,6 +100,7 @@ class DATA:
 
 
 class HV:
+    # class to control hv device
     def __init__(self,port, logger, data):
         self.port=port
         self.log=logger
@@ -93,6 +132,7 @@ class HV:
             self.log.info("HV: Using device at port %s" % self.port)
 
     def test(self, port):
+        # function to test port
         try:
             self.log.info("HV: Test Port:%s"% port)
             self.port=port
@@ -108,6 +148,7 @@ class HV:
             return False
 
     def findPorts(self):
+        # search possible usb ports
         if sys.platform.startswith('win'):
             ports = ['COM%s' % (i + 1) for i in range(256)]
             # not tested!
@@ -121,6 +162,7 @@ class HV:
         return ports
 
     def start_connection(self):
+        # connect to device via specified or found port
         self.hv=serial.Serial(self.port, 9600, serial.EIGHTBITS, serial.PARITY_NONE, serial.STOPBITS_ONE ,timeout=2)
         self.log.info("HV: connected to HV at %s"%self.port)
 
@@ -131,7 +173,7 @@ class HV:
 
     def read_current_voltage(self):    
         for i in range(2):
-            self.hv.write(r_voltage)
+            self.hv.write(r_meas_voltage)
             while self.hv.inWaiting() == 0:
                 time.sleep(0.1)
             self.hv.readline()
@@ -148,7 +190,7 @@ class HV:
                 return None
 
     def check_answer(self,answer):
-        if answer.startswith('?'):
+        if answer.startswith('?'): # error occured
             return -1
         elif self.isDigit(answer):
             return 1
@@ -164,13 +206,14 @@ class HV:
             return False
 
     def check_polarity(self, V):
+        # not used, needs to be changed for neg polarity
         if V == 0.0:
             self.hv.write(r_polarity)
             self.hv.readline()
             pol=self.hv.readline()
             if pol == '+':
                 pass
-            elif pol == '-':
+            elif pol == '-': #### TODO
                 self.hv.write(s_polarity_pos)
                 self.hv.readline()
         else:
@@ -178,10 +221,10 @@ class HV:
             self.hv.readline()
 
     def getVoltageByteArray(self,voltage):
-        lyst=list([0x44, 0x31, 0x3D])
+        lyst=list([D, one, equal])
         for letter in str(voltage):
-            lyst.append(0x30+int(letter))
-        lyst.extend([0x0D, 0x0A])
+            lyst.append(0x30+int(letter)) # constructing hex ascii for numbers 0-9
+        lyst.extend([CR, LF])
         byteAarray=bytearray(lyst)
         return byteAarray # format: D1=1000\r\n
 
@@ -237,13 +280,13 @@ class HV:
         self.log.info("HV: take_data: voltage: %f"%(V_curr))
 
         if V_curr == 0.0:
-            self.hv.write(s_polarity_pos)
-            self.log.info("HV: take_data: s_polarity_pos: %s"%(str(self.hv.readline())))
+            self.hv.write(POLARITY)
+            self.log.info("HV: take_data: POLARITY: %s"%(str(self.hv.readline())))
         elif V_curr <= 0.0:
             self.hv.write(getVoltageByteArray(0))
             self.log.info("HV: take_data: s_voltage_0: %s"%(self.hv.readline()))
-            self.hv.write(s_polarity_pos)
-            self.log.info("HV: take_data: s_polarity_pos: %s"%(self.hv.readline()))
+            self.hv.write(POLARITY)
+            self.log.info("HV: take_data: POLARITY: %s"%(self.hv.readline()))
         # else: v_curr > 0    
         self.ramp(VOLTAGE)
         
