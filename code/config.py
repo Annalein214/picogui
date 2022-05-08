@@ -619,7 +619,7 @@ class displayConfigWidget(MyGui.QWidget):
         
         
         default=self.daq.showArea
-        self.showArea=MyGui.QCheckBox("Show PE")
+        self.showArea=MyGui.QCheckBox("Show Charge")
         self.showArea.setChecked(default)
         self.showArea.stateChanged.connect(self.enable)
 
