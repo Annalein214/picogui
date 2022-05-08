@@ -765,27 +765,45 @@ class myPicoScope(QThread):
 
             if simpleAmp:
                 # find baseline
+                i_debug=0
                 for waveform in data:
-                    #baseline=capture[0: int(len(capture)*0.05)]
-                    #baseline=np.median(baseline)
-                    baseline=0
-                
-                    indices=np.arange(0,len(waveform),1)
-                    if negativePulse:
-                        underthresold=waveform<self.triggervoltage
+                    ### old
+                    if 0:
+                        #baseline=capture[0: int(len(capture)*0.05)]
+                        #baseline=np.median(baseline)
+                        baseline=0
+                        indices=np.arange(0,len(waveform),1)
+                        if negativePulse:
+                            underthresold=waveform<self.triggervoltage
+                        else:
+                            underthresold=waveform>self.triggervoltage # change from < to > for negative / positive pulses
+                        indices=indices[underthresold]
+                        area=waveform[underthresold]-baseline
+                        area*=self.interval
+                        areas.append(sum(area))
+                        
+                        # V3
+                        #diff=(waveform[1:]-waveform[:-1])
+                        #intg=np.cumsum(diff)
+                        #area=intg-baseline
+                        #area*=self.interval
+                        #areas2.append(sum(area))
                     else:
-                        underthresold=waveform>self.triggervoltage # change from < to > for negative / positive pulses
-                    indices=indices[underthresold]
-                    area=waveform[underthresold]-baseline
-                    area*=self.interval
-                    areas.append(sum(area))
-                    
-                    # V3
-                    #diff=(waveform[1:]-waveform[:-1])
-                    #intg=np.cumsum(diff)
-                    #area=intg-baseline
-                    #area*=self.interval
-                    #areas2.append(sum(area))
+                        # spoke with John from Mainz about this algo
+                        #preTriggerSamples=int(len(waveform)*0.09)
+                        #baselineSamples=waveform[0:preTriggerSamples]
+                        #baseline=np.median(baselineSamples)
+                        baseline=0
+                        #if i_debug<5: print("Pretrigger",preTriggerSamples, baseline, baselineSamples)
+                        
+                        area=waveform[0:int(len(waveform)*0.5)]-baseline # any sinus noise should add up to zero
+                        area*=self.interval
+                        area=sum(area)
+                        if i_debug<5: print("area", area)
+                        areas.append(area)
+
+
+                        i_debug+=1
                     
             else:
                 self.out.error("SimpleAmp = False is not implemented for Areas!")

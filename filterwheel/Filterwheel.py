@@ -31,7 +31,7 @@ log_dir=os.getcwd()+"/log/" # current directory
 
 log_level="debug" # debug, info
 
-test_with_short_times=1 
+test_with_short_times=False
 
 cold=True
 
@@ -78,7 +78,7 @@ NEXT = "0745" # large distance movement, seems to be > 50% of distance between f
 ADJUST = "0007" # intermediate steps
 ADJUST2 = "0010" # bigger intermediate steps
 STEP = "0005" # small slow steps
-if cold:     # steps at cold temperatures
+if cold:   # works for warm (0C) too!  # steps at cold temperatures
     NEXT= "1075" # sarah 1045
     ADJUST="0015" # for sarah 15, but at -50C does not work
     ADJUST2="0030" # as fallback for higher temperatures
@@ -89,7 +89,7 @@ ERRCNT = 5
 if test_with_short_times:
     DELAY=60
 else:
-    DELAY=3600
+    DELAY=1800
 ###################################################################################################
 
 
@@ -103,7 +103,7 @@ class DATA:
         #self.starttime=t
         #self.time=t
 
-        self.filename=self.log_dir+"/"+logger.formatTimeforLog(t)+".csv"
+        self.filename=self.log_dir+"/"+logger.formatTimeforLog(t)+".fw.csv"
         f=open(self.filename, "a")
         f.write("# Timestamp, Encoder Position (0-2048) \n")
         f.close()
@@ -197,14 +197,14 @@ class Arduino:
 
     def driveToPosition(self, goal):
         # this is not the shortest way to get to a position, but simple for programming
-        pos=self.encoder.readPosition()
+        pos=int(self.encoder.readPosition())
         self.log.info("FA: dtp: current position %d"%int(pos))
-
+        goal=int(goal)
         i=0
         while pos != goal:
             # first large steps and then getting more precise
             if abs(goal-pos)>=200: step=NEXT
-            elif abs(goal-pos)>=100 < goal: step=int(NEXT/2)
+            elif abs(goal-pos)>=100 < goal: step="%04d"%(int(NEXT)/2)
             elif abs(goal-pos)>=4: step=STEP 
             else: step=ADJUST
 
@@ -212,7 +212,7 @@ class Arduino:
             if goal < pos: direction="-"
 
             drive=self.driveMotor(direction+step)
-            pos=self.encoder.readPosition()
+            pos=int(self.encoder.readPosition())
             time.sleep(1)
             if i>100: # emergency break
                 self.log.error("FA: Needed more than 100 steps to reach goal. This is unreasonable. Stop it.")
@@ -407,10 +407,13 @@ if __name__=="__main__":
 
             arduino=Arduino(arduino_path, encoder, logger)
 
-            if not test_with_short_times: time.sleep(DELAY)            
+            #if not test_with_short_times: time.sleep(DELAY)            
             
-            arduino.run()
-            
+            if 1:
+                arduino.run()
+            elif 0:
+                #arduino.driveToPosition(952)
+                arduino.driveToPosition(1969)
             break
         except serial.SerialException as e:
             e2=str(traceback.print_exc())

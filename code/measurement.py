@@ -672,12 +672,12 @@ class Measurement:
         axes[-1].set_xlabel("Day of month / Hour of Day", fontsize=15)
 
         # adjust quantity of x lables
-        try:
-            xloc = matplotlib.pyplot.MaxNLocator(6)
-            # nicer human readable ticks with hour and decimals
-            axis.set_major_locator(xloc)
-        except:
-            self.log.debug("MEAS: xloc did not work")
+        #try:
+        #    xloc = matplotlib.pyplot.MaxNLocator(6)
+        #    axis.set_major_locator(xloc) # 'AxesSubplot' object has no attribute 'set_major_locator'
+        #except Exception as e:
+        #    self.log.debug("MEAS: xloc did not work: %s"%str(e))
+        # nicer human readable ticks with hour and decimals
         labels=axis.get_xticks().tolist()
         ticks=np.arange(int(labels[0]), int(labels[-1])+xlabeltime, xlabeltime)
         l1=ticks%24

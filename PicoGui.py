@@ -61,6 +61,7 @@ def main(opts, log, connect):
     
     if connect: 
         hygro=Hygrosens(log)
+        print("HYGRO")
     else:
         hygro=None
         

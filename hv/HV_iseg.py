@@ -40,7 +40,7 @@ class DATA:
         #self.starttime=t
         #self.time=t
 
-        self.filename=self.log_dir+"/"+logger.formatTimeforLog(t)+".csv"
+        self.filename=self.log_dir+"/"+logger.formatTimeforLog(t)+".hv.csv"
         f=open(self.filename, "a")
         f.write("#Timestamp, Voltage / V\n")
         f.close()
@@ -258,7 +258,7 @@ class HV:
 if __name__=="__main__":
 
     logger=log(save=True, level=log_level, directory=log_dir, 
-                    end="fw.log", # use different ending than pico main script, to make sure there is no override
+                    end="hv.log", # use different ending than pico main script, to make sure there is no override
                     )
 
     data=DATA(log_dir, logger)

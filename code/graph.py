@@ -99,7 +99,7 @@ class plotWidget(FigureCanvas):
         if not self.daq.showArea:
             self.ax1.set_xlabel(r"Amplitude / mV")
         else:
-            self.ax1.set_xlabel(r"PE")
+            self.ax1.set_xlabel(r"Area/e/50/1e7")
         self.ax1.set_ylabel("Counts")
         self.ax2.set_xlabel(r"Time / s")
         self.ax2.set_ylabel("Rate / 1/s", color="blue")
@@ -233,16 +233,20 @@ class plotWidget(FigureCanvas):
                     #print (areas)
                     if len(areas)>0:
                         areas= np.hstack(areas)
-                        areas=np.float64(areas) /50./(1.602*1e-19)/self.gain(meanHV) # change from negative to positive for negative / positive pulses
+                        #print("Gain:",self.gain(meanHV))# 10073680.8734
+                        gain=1.e7 # generic, can be corrected
+                        areas=np.float64(areas) /50./(1.602*1e-19)/gain #/self.gain(meanHV) # change from negative to positive for negative / positive pulses
+                        
 
                         if negativePulse:
                             areas=-areas
-
-                        #rint (np.min(areas), np.max(areas))
+                        
+                        #print ("Areas graph",np.min(areas), np.max(areas))
                         
                         # good for a first guess:
-                        borders=(0,np.max(areas)+np.max(areas)*0.1) 
-                        # hard coded because it is hard to estimate a useful value from data, best option would be to correlate it with a known gain which is hard if the PMT gain isn't known yet
+                        #borders=(0,np.max(areas)+np.max(areas)*0.1) 
+                        borders=(-1,3)
+                        # hard coded because it is hard to estimate a useful value from data, best option would be to correlate it with a known  which is hard if the PMT gain isn't known yet
                        
                         #borders=(-2e7,5e7) # pmt 1 for ampl PE
                         #borders=(-1e7,2e7) # pmt 6 for ampl PE
