@@ -5,17 +5,6 @@ This program was written in order to measure the rate PMT pulses, i.e. small pul
 
 A similar program exists which controls a probe via a km long cable using RS458. In that probe a RedPitaya is the mainboard and also reading out a PMT. Additional hardware (read out by the RedPitaya) were Raspberry py Zero IR Cameras, Motors, observation of the charge of low temperature batteries, temperature sensors, gyro sensor or a light flasher plus customized camera. This program is not yet on GIT. If interested, please contact me.
 
-# Prerequisits
-
-The software runs on Linux, Mac, Windows (some versions might not be supported, because the programm was only sometimes used at the one or other OS).
-
-- python 2 or 3 (2 deprecated)
-- PyQT4 or 5 (4 deprecated)
-- pyseriel (for further hardware)
-
-Picoscope 3xxx (MSO) or 6xxx, change to others should be straight forward. 
-Further possible hardware, see below.
-
 
 # Functionality
 
@@ -37,6 +26,30 @@ Live display / GUI functions
 - show slow data as numbers e.g. temperature, HV, rate, Light Sensor
 - FFT support buggy but worked at some time
 - hourly plots which show data over time (i.e. rate, mean amplitude, temperature, HV etc)
+
+
+# Prerequisits
+
+The software runs on Linux, Mac, Windows (some versions might not be supported, because the programm was only sometimes used at the one or other OS).
+
+- python 2 or 3 (2 deprecated)
+- PyQT4 or 5 (4 deprecated)
+- pyseriel (for further hardware)
+
+Picoscope 3xxx (MSO) or 6xxx, change to others should be straight forward. 
+Further possible hardware, see below.
+
+# usage
+
+Create a folder named "data" in the top folder. In Terminal start the program with 
+
+$ pythonX PicoGui.py
+
+Make sure you check the output in the terminal for errors as well as the general log of the device and the measurement log (in the measurement folder). Manual log messages are marked with "LMSG" in the logs. For every measurement a new folder is created, however they are not automatically deleted, if the measurement is not stored. 
+
+This software is made for rate measurements. Therefore I recommend to measure the rate accuracy first. 
+Set the captures in a way that each block of triggers takes at least 1 sec, i.e. Number_of_Captures >= Real_Rate_in_Hz. 
+Then use a signal generator and record the rate in relation to the set rate at the generator. My experience is an increase to 5% under-estimation of rate which is then very stable up to at least 100kHz. 
 
 # Further hardware
 
