@@ -9,6 +9,8 @@ port="/dev/ttyUSB0"
 class Hygrosens:
 
     def readDevice(self):
+        if self.device==None:
+            return False
         # the device gives a 11 bit value back which goes from -50 to +200 degrees Celsius
         # that is the reason for the following factor and the substraction of 50 later on
         factor = 2048.0/200 
@@ -30,6 +32,8 @@ class Hygrosens:
             self.log.info("HY: Test Port:%s"% port)
             self.port=port
             self.initialise()
+            if self.device==None:
+                raise Exception("No device initialised!")
             temperatures=self.readDevice()
             if len(temperatures)==0: raise Exception("Wrong device, I assume. Temperature array empty.")
             return True
@@ -80,8 +84,10 @@ class Hygrosens:
                     
         if self.port==None:
             self.log.error("HY: No port found. Measurement switched off!")
+            self.online=False
         else:
             self.log.info("HY: Using device at port %s" % self.port)
+            self.online=True
 
 
 ##########################################################################################

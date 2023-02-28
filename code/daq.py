@@ -43,6 +43,8 @@ class myPicoScope(QThread):
         self._connect=connect
         
         self.hygro=hygro
+
+        self.progress=0 # otherwise bug sometimes when early access to this variable
         
 
         self.setDefault() # only pre-set not really set on the device
@@ -430,6 +432,7 @@ class myPicoScope(QThread):
         if self.calcDTimes: self.dtimes=[]
         i=0 # block nbr
 
+
         while not self._threadIsStopped:
 
             # info about loop progress:
@@ -592,6 +595,10 @@ class myPicoScope(QThread):
                 try:
                     a=[endBlock-self.startexecutiontime]
                     t=self.hygro.readDevice()
+                    if t==False:
+                        self.measureTemp=False
+                        raise Exception("Temperature cannot be read out. Set offline.")
+                        self.log.error("Temperature cannot be read out. Set offline.")
                     a.extend(list(t))
                     #self.out.debug("Temperatures measured after %f seconds: %f %f %f %f" % \
                     #(a[0], a[1], a[2], a[3], a[4]))

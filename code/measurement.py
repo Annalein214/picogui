@@ -901,7 +901,11 @@ class Measurement:
         ax1.grid(True)
         ax1.set_ylabel("Rate in Hz", fontsize=15)
         ax1.legend(bbox_to_anchor=(0, 1.02,1, 0.102),loc=3,ncol=1,mode="expand",borderaxespad=0., prop={'size':15})
-        if log: ax1.set_yscale("log", nonposy="clip")
+        if log: 
+            try: 
+                ax1.set_yscale("log", nonposy="clip")
+            except:
+                ax1.set_yscale("log", nonpositive="clip")
         if xborders!=None:
             ax1.set_xlim(xborders[0],xborders[1])
         else:

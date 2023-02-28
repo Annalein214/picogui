@@ -27,6 +27,9 @@ Live display / GUI functions
 - FFT support buggy but worked at some time
 - hourly plots which show data over time (i.e. rate, mean amplitude, temperature, HV etc)
 
+## Other devices
+
+TBD or see below
 
 # Prerequisits
 
@@ -39,7 +42,7 @@ The software runs on Linux, Mac, Windows (some versions might not be supported, 
 Picoscope 3xxx (MSO) or 6xxx, change to others should be straight forward. 
 Further possible hardware, see below.
 
-# usage
+# Usage
 
 Create a folder named "data" in the top folder. In Terminal start the program with 
 

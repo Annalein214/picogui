@@ -62,6 +62,9 @@ def main(opts, log, connect):
     if connect: 
         hygro=Hygrosens(log)
         print("HYGRO")
+        if hygro.online==False:
+            hygro=None
+            print("Hygro not found, turned off")
     else:
         hygro=None
         
