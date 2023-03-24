@@ -867,7 +867,8 @@ class myPicoScope(QThread):
         return np.array(freq)
 ##########################################################################################
     def monitorToHV(self,monitor):
-        return 3000.*monitor/5.
+        return monitor
+        #return 3000.*monitor/5. # use channel more generic
         
     def suggestedMinVoltage(self):
         voltagerange=self.voltagerange[self.triggerchannel]
@@ -974,13 +975,13 @@ class myPicoScope(QThread):
         if self.channelEnabled["B"]:
             try:
                 self.channelB=self.monitorToHV(np.array(self.channelB))
-                self.save("HV", self.channelB); self.channelB=[]
-                self.save("HVstd", self.HVstd); self.HVstd=[]
+                self.save("ChB", self.channelB); self.channelB=[]
+                self.save("ChBstd", self.HVstd); self.HVstd=[]
             except Exception as e:
                 self.out.error("Couldnt save channel B")
                 self.out.error(str(traceback.print_exc()))
             if self.saveHVWfm==True:
-                self.save("HVwfm", self.HVWfm); self.HVWfm=[]
+                self.save("ChBwfm", self.HVWfm); self.HVWfm=[]
         if not self.simpleAmp: 
             self.save("ind", self.indices); self.indices=[]
             

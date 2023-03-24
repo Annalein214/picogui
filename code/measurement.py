@@ -346,6 +346,8 @@ class Measurement:
         # hv log
         try:
             fyles=glob("/data/obertacke/luminescence/picogui/hv/log/*.csv")
+            if len(fyles)==0:
+                raise Exception("No HV values in this log") # added to avoid an error message which is hard to read
             fyles=sorted(fyles)
             fyle=fyles[-1]
             self.log.debug("Meas: HV: Use file %s"%fyle)
@@ -390,6 +392,8 @@ class Measurement:
         # fw log
         try:
             fyles=glob("/data/obertacke/luminescence/picogui/filterwheel/log/*.csv")
+            if len(fyles)==0:
+                raise Exception("No Filterwheel values in this log") # added to avoid an error message which is hard to read
             fyles=sorted(fyles)
             fyle=fyles[-1]
             self.log.debug("Meas: FW: Use file %s"%fyle)
@@ -503,7 +507,7 @@ class Measurement:
             
             N1=100
             if len(rates) < N1*10: 
-                N1 = max(10,len(self.meanAmp)/10)
+                N1 = int(max(10,len(self.meanAmp)/10)) # forced it to be integer because of an error message in convolve later in the code
                 self.log.info("MEAS: Corrected N1 to %d"%N1)
             runningmean=np.convolve(rates, np.ones((N1))/N1, mode='same')#ones((N1,)) eliminate "," Megumi.C
             runningmeanx=self.hours

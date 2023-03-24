@@ -44,6 +44,9 @@ class plotWidget(FigureCanvas):
         
         self.ax4 = self.ax2.twinx()
         self.ax5 = self.ax3.twinx()
+        self.ax4.yaxis.set_label_position("right") # strange bug that the label is on the left side otherwise
+        self.ax5.yaxis.set_label_position("right")
+
         self.fig.subplots_adjust(left=0.13,
                                  right=0.86,
                                  bottom=0.1,
@@ -59,7 +62,7 @@ class plotWidget(FigureCanvas):
         text+="Light:\n - mV\n\n"
         text+="Freq/Int: \n"+" - Hz "+"\n"+" - ns \n\n"
         text+="Rate: " + " - Hz \n\n"
-        text+="HV: " + " - V \n\n"
+        text+="Ch B: " + " - V \n\n"
         self.ax2.text(1.25,1., 
                          text, 
                          transform=self.ax4.transAxes,
@@ -105,7 +108,9 @@ class plotWidget(FigureCanvas):
         self.ax2.set_ylabel("Rate / 1/s", color="blue")
         self.ax3.set_xlabel(r"Time / ns")
         self.ax5.set_ylabel("Amplitude / mV")
-        self.ax4.set_ylabel("HV / V", color="green")
+        self.ax4.set_ylabel("Ch B / V", color="green")
+        self.ax4.yaxis.set_label_position("right") # repetition needed so that label keeps on the right, strange bug with new matplotlib version
+        self.ax5.yaxis.set_label_position("right")
         
         xloc = matplotlib.pyplot.MaxNLocator(self.daq.xticks)
         self.ax1.xaxis.set_major_locator(xloc)
@@ -169,7 +174,8 @@ class plotWidget(FigureCanvas):
             # HV ###############################################################
             
             def monitorToHV(monitor):
-                return 3000.*monitor/5.
+                return 1000*monitor # switch off calculation of high voltage to use this channel more generic, just convert to volts from millivolts
+                #return 3000.*monitor/5.
 
             
             if self.daq.channelEnabled["B"]:
@@ -186,11 +192,12 @@ class plotWidget(FigureCanvas):
                 channelB=monitorToHV(channelB)
                 self.ax4.plot(timeB, channelB, "-o", color="green", linewidth=1, markersize=1, alpha=0.7)
                 from matplotlib.ticker import FormatStrFormatter
-                self.ax4.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+                #self.ax4.yaxis.set_major_formatter(FormatStrFormatter('%.1f')) # make more generic
                 #self.ax4.set_ylim(-self.daq.voltagerange["B"]-self.daq.offset["B"], self.daq.voltagerange["B"]-self.daq.offset["B"])
                 meanHV=np.mean(channelB)
             else: 
                 meanHV=1096.5 # 1.840 monitor voltage
+                meanHV=0 # use the channel more generic
             
             
             # PMT ###############################################################
@@ -278,7 +285,11 @@ class plotWidget(FigureCanvas):
                 ##print (len(ratetime), len(rate))
                 if len(rate)>0:
                     self.ax2.plot(ratetime, rate, "-o", color="blue", linewidth=1, markersize=1, alpha=0.7)
-                    self.ax2.set_xlim(0,max(ratetime)+max(ratetime)*0.1)
+                    xlim1=0
+                    xlim2=max(ratetime)+max(ratetime)*0.1
+                    if xlim2 == xlim1:
+                        xlim2=1 # avoid an annoying error on the first entry after bootup
+                    self.ax2.set_xlim(0,xlim2)
                     self.ax2.set_ylim(min(rate)-min(rate)*0.1,max(rate)+max(rate)*0.1)
 
                 #--- waveform -------------------------------------------
@@ -356,7 +367,7 @@ class plotWidget(FigureCanvas):
                     text+="Rate: " + " %d Hz \n\n" % (rate[-1])
                 try:
                     if len(channelB)>0:
-                        text+="HV: " + " %.2f V \n\n" % (channelB[-1])
+                        text+="Ch B: " + " %.1e V \n\n" % (channelB[-1]) # make more generic
                 except: pass
                 self.ax2.text(1.35,1., 
                                  text, 
