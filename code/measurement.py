@@ -505,7 +505,7 @@ class Measurement:
             if len(rates) < N1*10: 
                 N1 = max(10,len(self.meanAmp)/10)
                 self.log.info("MEAS: Corrected N1 to %d"%N1)
-            runningmean=np.convolve(rates, np.ones((N1,))/N1, mode='same')
+            runningmean=np.convolve(rates, np.ones((N1))/N1, mode='same')#ones((N1,)) eliminate "," Megumi.C
             runningmeanx=self.hours
             runningmeanx=runningmeanx[int(0.5*N1):-int(0.5*N1)]
             rateM=runningmean[int(0.5*N1):-int(0.5*N1)]

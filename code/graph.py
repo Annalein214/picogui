@@ -133,7 +133,8 @@ class plotWidget(FigureCanvas):
                 # this fails the first time, but then it works
                 if self.i%2==0:
                     self.log.debug("Set timer interval to %f seconds"%(self.daq.loopduration/1000)) # todo info in window
-                    self.timer.setInterval(self.daq.loopduration) # adjust interval dynamically so that it stays at a useful level
+                    self.timer.setInterval(int(self.daq.loopduration)) # adjust interval dynamically so that it stays at a useful level
+                    #argument is changed to be int by Megumi.C
             except AttributeError as e:
                 self.log.debug( "WARNING: plotWidget has no timer")
                 

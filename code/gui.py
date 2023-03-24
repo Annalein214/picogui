@@ -169,7 +169,7 @@ class CentralWidget(MyGui.QWidget):
 
     def update_progressbar(self):
         if self.daq.isRunning():
-            self.progress.setValue(self.daq.progress)
+            self.progress.setValue(int(self.daq.progress))#argument is changed to be int by Megumi.C
         else:
             self.progress.setValue(0)
 
