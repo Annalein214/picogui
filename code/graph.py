@@ -59,10 +59,11 @@ class plotWidget(FigureCanvas):
         
         # test text at start
         text="Temperatures:\n"+r" $-^{\circ} \,\,\,-^{\circ}$"+"\n"+"$-^{\circ} \,\,\, -^{\circ}$"+"\n\n"
-        text+="Light:\n - mV\n\n"
+        text+="Room light: - mV"+"\n\n"
         text+="Freq/Int: \n"+" - Hz "+"\n"+" - ns \n\n"
         text+="Rate: " + " - Hz \n\n"
         text+="Ch B: " + " - V \n\n"
+        text+="Ch C:\n - mV\n\n"
         self.ax2.text(1.25,1., 
                          text, 
                          transform=self.ax4.transAxes,
@@ -350,12 +351,11 @@ class plotWidget(FigureCanvas):
                             "\n"+"$-^{\circ} \,\,\, -^{\circ}$"+"\n\n"
 
 
-                if self.daq.channelEnabled["C"] and len(self.daq.channelC)>0:
-                        text+="Light:\n"+ \
-                                r" %.1f mV" % (self.daq.channelC[-1]*1000) +\
-                                "\n\n"
+                if self.daq.measureLight and len(self.daq.lightsensor)>0:
+                    text+="Room Light:\n"+"%.1f mV \n\n" % self.daq.lightsensor[-1][1]
                 else:
-                        text+="Light:\n - mV\n\n"
+                    text+="Room light: - mV"+"\n\n"
+
                 
                 text+="Freq/Int:\n"+\
                         r" %.1e Hz /" % (self.daq.sampleRate) + \
@@ -369,6 +369,14 @@ class plotWidget(FigureCanvas):
                     if len(channelB)>0:
                         text+="Ch B: " + " %.1e V \n\n" % (channelB[-1]) # make more generic
                 except: pass
+
+                if self.daq.channelEnabled["C"] and len(self.daq.channelC)>0:
+                        text+="Ch C:\n"+ \
+                                r" %.1f mV" % (self.daq.channelC[-1]*1000) +\
+                                "\n\n"
+                else:
+                        text+="Ch C:\n - mV\n\n"
+
                 self.ax2.text(1.35,1., 
                                  text, 
                                  transform=self.ax4.transAxes,

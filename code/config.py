@@ -157,8 +157,6 @@ class channelConfigWidget(MyGui.QWidget):
                 self.daq.voltagerange[self.channel]=voltagerange
                 
 
-# TODO: channel A and B are hard coded as PMT and temperature here and in daq
-
         coupling=str(self.chooseCoupling.currentText())
         self.daq.coupling[self.channel] = coupling.replace("\r","")# TODO hier scheint kein \r in coupling zu sein
 
@@ -454,25 +452,25 @@ class measurementConfigWidget(MyGui.QWidget):
         
         default=bool(self.daq.channelEnabled["A"])
         #self.log.error(str(default))
-        self.PMTEnabled=MyGui.QCheckBox("Ch. A (PMT)")
+        self.PMTEnabled=MyGui.QCheckBox("Ch. A (WFM, Amp, Area, Rate)")
         self.PMTEnabled.setChecked(default)
         self.PMTEnabled.stateChanged.connect(self.enable)
         
         default=bool(self.daq.channelEnabled["B"])
         #self.log.error(str(default))
-        self.HVEnabled=MyGui.QCheckBox("Ch. B (HV)")
+        self.HVEnabled=MyGui.QCheckBox("Ch. B (WFM,Std,Avg)")
         self.HVEnabled.setChecked(default)
         self.HVEnabled.stateChanged.connect(self.enable)
         
         default=bool(self.daq.channelEnabled["C"])
         #self.log.error(str(default))
-        self.chCEnabled=MyGui.QCheckBox("Ch. C (Light)")
+        self.chCEnabled=MyGui.QCheckBox("Ch. C (Avg)")
         self.chCEnabled.setChecked(default)
         self.chCEnabled.stateChanged.connect(self.enable)
         
         default=bool(self.daq.channelEnabled["D"])
         #self.log.error(str(default))
-        self.chDEnabled=MyGui.QCheckBox("Ch. D (Antenna)")
+        self.chDEnabled=MyGui.QCheckBox("Ch. D (Amp, FFT)")
         self.chDEnabled.setChecked(default)
         self.chDEnabled.stateChanged.connect(self.enable)
         
@@ -480,6 +478,11 @@ class measurementConfigWidget(MyGui.QWidget):
         self.tempEnabled=MyGui.QCheckBox("Temperature")
         self.tempEnabled.setChecked(default)
         self.tempEnabled.stateChanged.connect(self.enable)
+
+        default=self.daq.measureLight
+        self.lightEnabled=MyGui.QCheckBox("Room light")
+        self.lightEnabled.setChecked(default)
+        self.lightEnabled.stateChanged.connect(self.enable)
         
         default=self.daq.measureCPU
         self.cpuEnabled=MyGui.QCheckBox("CPU / Memory")
@@ -545,12 +548,14 @@ class measurementConfigWidget(MyGui.QWidget):
         grid.addWidget(self.tempEnabled,        c,1) # y, x
         c+=1
         grid.addWidget(self.HVEnabled,        c,0) # y, x
-        grid.addWidget(self.fftEnabled,        c,1) # y, x
+        grid.addWidget(self.lightEnabled,        c,1) # y, x
         c+=1
         grid.addWidget(self.chCEnabled,        c,0) # y, x
         grid.addWidget(self.cpuEnabled,        c,1) # y, x
         c+=1
         grid.addWidget(self.chDEnabled,        c,0) # y, x
+        grid.addWidget(self.fftEnabled,        c,1) # y, x
+
         #c+=1
         #grid.addWidget(verticalLine,             c,0) # y, x
         
@@ -595,6 +600,7 @@ class measurementConfigWidget(MyGui.QWidget):
         self.daq.channelEnabled["D"] = self.chDEnabled.isChecked()
         self.daq.doCalcFFT = self.fftEnabled.isChecked()
         self.daq.measureTemp=self.tempEnabled.isChecked()
+        self.daq.measureLight=self.lightEnabled.isChecked()
         self.daq.measureCPU=self.cpuEnabled.isChecked()
              
         

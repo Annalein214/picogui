@@ -262,6 +262,10 @@ class Measurement:
         files=glob(directory+starttime+tag+"*"+"temp*")
         #if len(files)==0: print "\t\tError temp"+label
         self.temps=self.readDataFromFile(sorted(files))
+
+        #if DEBUG: print "\tLoad lightsensor ..."
+        files=glob(directory+starttime+tag+"*"+"light*")
+        self.lights=self.readDataFromFile(sorted(files))
         
         #if DEBUG: print "\tLoad ChC ..."
         files=glob(directory+starttime+tag+"*"+"chC*")
@@ -316,6 +320,14 @@ class Measurement:
             self.temp2=np.array(self.temps[:,2])
             self.temp3=np.array(self.temps[:,3])
             self.temp4=np.array(self.temps[:,4])
+
+        if self.lights!=[]:
+            self.lighttimes=np.array(self.lights[:,0])
+            self.lighttimes/=3600
+            self.lighttimes+=self.starthourmin
+            self.lightvoltage=np.array(self.lights[:,1])
+        else:
+            self.log.error("Values for light not found")
 
         if self.cpu != []:
             cputime=self.cpu[:,0]
@@ -386,6 +398,11 @@ class Measurement:
             self.log.error(str(e))
             self.saveHV=False
 
+        except Exception as e:
+            e2=str(traceback.print_exc())
+            self.log.error(e2)
+            self.log.error(str(e))
+            self.saveHV=False
 
         # --------------------------------------------------------
         self.saveFW=False
@@ -433,6 +450,7 @@ class Measurement:
             self.log.error(str(e))
             self.saveFW=False
 
+
         # ---------------------------------------------------------
         self.log.debug( "MEAS: Measurement %s loaded\n"% self.label)
         
@@ -455,6 +473,7 @@ class Measurement:
                       dir="",
                       enabledChannels={"A":True, "B":False, "C":False, "D":False},
                       measTemp=False,
+                      measLight=False,
                       measCPU= False,
                      ):
         
@@ -488,7 +507,7 @@ class Measurement:
         
             N2=100
             if len(self.meanAmp) < N2*10: 
-                N2 = max(10,len(self.meanAmp)/10)
+                N2 = int(max(10,len(self.meanAmp)/10))
                 self.log.info("MEAS: Corrected N2 to %d"% N2)
             runningmean2=np.convolve(self.meanAmp, np.ones((N2,))/N2, mode='same')
             runninghours=self.hours
@@ -535,13 +554,14 @@ class Measurement:
         # initialise plot
         
         fig=plt.figure(figsize=(10,10))
-        subplotnumber=10
+        subplotnumber=11
         i=11 # required to get the plots at the correct position, should be always 11
 
         # switch off channels
         if not enabledChannels["A"]: subplotnumber-=2
         if not enabledChannels["D"]: subplotnumber-=1
         if not measTemp: subplotnumber-=2
+        if not measLight: subplotnumber-=1
         if not enabledChannels["C"]:  subplotnumber-=1 
         if not enabledChannels["B"]:  subplotnumber-=1
         if not measCPU: subplotnumber-=1
@@ -557,6 +577,8 @@ class Measurement:
         if measTemp: 
             ax2=fig.add_subplot(subplotnumber*100+i); i+=1
             ax8=fig.add_subplot(subplotnumber*100+i); i+=1
+        if measLight:
+            ax11=fig.add_subplot(subplotnumber*100+i); i+=1
         # room light
         if enabledChannels["C"]: ax3=fig.add_subplot(subplotnumber*100+i); i+=1
         # HV
@@ -578,6 +600,8 @@ class Measurement:
         if measTemp:  
             axes.append(ax2)
             axes.append(ax8)
+        if measLight:
+            axes.append(ax11)
         if enabledChannels["C"]: axes.append(ax3)
         if enabledChannels["B"]: axes.append(ax4)
         if enabledChannels["D"]: axes.append(ax5)
@@ -610,10 +634,17 @@ class Measurement:
             except Exception as e: 
                 #print e
                 pass
+
+        if measLight:
+            try:
+                print("!!", self.lightvoltage, "\n!!",self.lighttimes)
+                ax11.plot(self.lighttimes, self.lightvoltage,label="Light sensor", color="blue", alpha=0.7) # room temperature, plot separately
+            except Exception as e:
+                pass
         
         if enabledChannels["C"]:
             try:
-                ax3.plot(self.hours, self.chC, label="Light")
+                ax3.plot(self.hours, self.chC, label="Ch C")
             except: pass
 
         if enabledChannels["B"]: 
@@ -629,7 +660,7 @@ class Measurement:
 
         if enabledChannels["D"]:
             if self.meanNoiseAmp!=[]:
-                ax5.plot(self.hours, self.meanNoiseAmp, label="Antenna")
+                ax5.plot(self.hours, self.meanNoiseAmp, label="Ch D")
                 ax5.plot(runninghours, ampMN, "k",linewidth=2., label="Running Mean N=%d"%N2)
         
         if measCPU:  
@@ -656,8 +687,10 @@ class Measurement:
         if measTemp: 
             ax2.set_ylabel(r"Temp. / $^{\circ}$C", fontsize=10)
             ax8.set_ylabel(r"Temp. / $^{\circ}$C", fontsize=10)
-        if enabledChannels["C"]: ax3.set_ylabel(r"Room light / V", fontsize=10)
-        if enabledChannels["B"]: ax4.set_ylabel("HV / V", fontsize=11)
+        if measLight:
+            ax11.set_ylabel(r"Light / V", fontsize=10)
+        if enabledChannels["C"]: ax3.set_ylabel(r"Ch C / V", fontsize=10)
+        if enabledChannels["B"]: ax4.set_ylabel("Ch B / V", fontsize=11)
         if enabledChannels["D"]: ax5.set_ylabel("<Ampl.> / mV", fontsize=10)
         if measCPU:  ax7.set_ylabel("PC / %", fontsize=11)
         if self.saveHV: ax9.set_ylabel("HV / V", fontsize=11)

@@ -28,7 +28,11 @@ class myPicoScope(QThread):
     therefore it is started as a new thread
     '''
 
-    def __init__(self, log,hygro=None,directory="./", connect=True):
+    def __init__(self, log, 
+                       hygro=None,
+                       directory="./", 
+                       connect=True,
+                       diode=None):
         '''
         initialize and prepare
         '''
@@ -43,6 +47,7 @@ class myPicoScope(QThread):
         self._connect=connect
         
         self.hygro=hygro
+        self.diode=diode
 
         self.progress=0 # otherwise bug sometimes when early access to this variable
         
@@ -105,6 +110,7 @@ class myPicoScope(QThread):
         self.indices=[]
         self.areas=[]
         self.temperatures=[]
+        self.lightsensor=[]
         self.cpu=[]
         
         #################
@@ -143,6 +149,7 @@ class myPicoScope(QThread):
         #self.getTriggerInfo=False
         # temperature measuremnt
         self.measureTemp=False
+        self.measureLight=False
         # signal generator
         self.sigoffsetVoltage=0
         self.pkToPk=2 # microvolts
@@ -425,6 +432,7 @@ class myPicoScope(QThread):
         #
         self.lastTempSaved=endBlock
         self.temperatures=[]
+        self.lightsensor=[]
         #
         self.lastCPUSaved=endBlock
         self.cpu=[]
@@ -589,11 +597,17 @@ class myPicoScope(QThread):
                 #print( np.mean(dataB))
                 
             ############################################################
+            # read out add-on devices
                 
-            if self.measureTemp and endBlock-self.lastTempSaved > (10) and self._connect and self.hygro!=None:
-
+            if endBlock-self.lastTempSaved > (10): 
+                # endblock is the endtime of a data taking round
+                # lastTempSaved is time set in this section
+                # check required for first round?
+                # use this check for all add-on devices at once
+              if self.measureTemp and self._connect and self.hygro!=None:
+                
                 try:
-                    a=[endBlock-self.startexecutiontime]
+                    a=[endBlock-self.startexecutiontime] # get time axis
                     t=self.hygro.readDevice()
                     if t==False:
                         self.measureTemp=False
@@ -607,6 +621,7 @@ class myPicoScope(QThread):
                 except Exception as e:
                     print (traceback.print_exc())
                     self.out.error("Cannot read temperature %s"%e)
+                
                 # check timing precision
                 if self.calcCtimes:
                     ctimes=[]
@@ -617,6 +632,21 @@ class myPicoScope(QThread):
                         endctime=time.time()
                         ctimes.append(endctime-startctime)
                     self.ctimes.append(np.array(ctimes))
+
+              if self.measureLight and self._connect and self.diode!=None:
+                try:
+                    a=[endBlock-self.startexecutiontime] # get time axis
+                    t=self.diode.readDevice()
+                    if t==False:
+                        self.measureLight=False
+                        raise Exception("Light sensor cannot be read out. Set offline.")
+                        self.log.error("Light sensor cannot be read out. Set offline.")
+                    a.append(t)
+                    self.lightsensor.append(np.array(a))
+                except Exception as e:
+                    print (traceback.print_exc())
+                    self.out.error("Cannot read light sensor %s"%e)
+                
                 
             ############################################################
             if self.measureCPU and endBlock-self.lastCPUSaved > (10) and self._connect:
@@ -907,6 +937,7 @@ class myPicoScope(QThread):
                   dir=self.saveDirectory,
                   enabledChannels=self.channelEnabled,
                   measTemp=self.measureTemp,
+                  measLight=self.measureLight,
                   measCPU=  self.measureCPU,
                   )
                   
@@ -957,6 +988,8 @@ class myPicoScope(QThread):
                 self.out.error(str(traceback.print_exc()))
         if self.measureTemp: 
             self.save("temp", self.temperatures); self.temperatures=[]
+        if self.measureLight: 
+            self.save("light", self.lightsensor); self.lightsensor=[]
         if self.measureCPU:
             self.save("cpu", self.cpu); self.cpu=[]
         if self.doCalcFFT:

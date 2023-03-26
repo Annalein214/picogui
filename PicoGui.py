@@ -39,8 +39,11 @@ from code.gui import ApplicationWindow
 
 from code.log import log
 from code.daq import myPicoScope
-from code.hygrosens import Hygrosens
 from code.settings import Settings
+# external hardware
+from code.temperature.hygrosens import Hygrosens # temperature sensor
+from code.lightsensor.photodiode import Photodiode
+
 
 # picoscope
 
@@ -57,19 +60,29 @@ def main(opts, log, connect):
     
     #print(connect)
     
-    # initialize important hardware
-    
+    # initialize important external hardware
     if connect: 
+        # temperature sensor: hygrosens
         hygro=Hygrosens(log)
-        print("HYGRO")
         if hygro.online==False:
             hygro=None
-            print("Hygro not found, turned off")
+            print("Hygrosense temperature sensor not found, turned off")
+        # photodiode via arduino
+        diode = Photodiode(log)
+        if diode.online==False:
+            diode=None
+            print("Arduino light sensor not found, turned off")
     else:
         hygro=None
+        diode=None
         
     
-    scope=myPicoScope(log=log, hygro=hygro,directory=opts.directory, connect=connect)
+    scope=myPicoScope( log=log, 
+                       hygro=hygro,
+                       directory=opts.directory, 
+                       connect=connect,
+                       diode=diode,
+                      )
     ret=scope.open()
       
     settings=Settings(scope)
