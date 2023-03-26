@@ -76,11 +76,13 @@ class Photodiode:
         if self.port==None:
 
             # find a port 
-            self.log.info("PA: No port given. Try to find port for platform"+sys.platform)
+            self.log.info("PA: No port given. Try to find port for platform "+sys.platform)
             if sys.platform.startswith('win'):
                 ports = ['COM%s' % (i + 1) for i in range(256)]
                 # not tested!
             elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
+                # access to serial ports is given by
+                # sudo usermod -a -G dialout USERNAME
                 ports = glob.glob('/dev/ttyUSB*')
             elif sys.platform.startswith('darwin'):
                 ports = glob.glob('/dev/tty.*')
@@ -123,8 +125,10 @@ if __name__ == "__main__":
     log=log()
     t=Photodiode(log, port=port)
 
-    print (t.readDevice())
-
+    try:
+       print (t.readDevice())
+    except:
+       pass
 
 
 
