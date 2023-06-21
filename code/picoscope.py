@@ -15,9 +15,11 @@ import platform
 ##########################################################################################
 '''
 Changes to picoscope6000:
+IMPORTANT: only valid for 3000D MSO not ABC
 - replaced all ps6000 with ps3000a
 - remove DC50
 - add setDigitalPort
+- change numbers in timebase functions
 
 
 TODO: 
@@ -444,24 +446,28 @@ class picoscope:
         
     def getTimeBaseNum(self, sampleTimeS):
         """ Return sample time in seconds to timebase as int for API calls. """
-        maxSampleTime = (((2 ** 32 - 1) - 4) / 156250000)
-        if sampleTimeS < 6.4E-9:
-            timebase = math.floor(math.log(sampleTimeS * 5E9, 2))
+        maxSampleTime = (((2 ** 32 - 1) - 2) / 125000000) ## obi change to 3000 D
+        if sampleTimeS < 8E-9:
+            timebase = math.floor(math.log(sampleTimeS * 1E9, 2)) ## obi change for 3000 D
             timebase = max(timebase, 0) # ergibt 2. wenn sampleTimeS=1e-9
         else:
             #Otherwise in range 2^32-1
             if sampleTimeS > maxSampleTime:
                 sampleTimeS = maxSampleTime
-            timebase = math.floor((sampleTimeS * 156250000) + 4)
+            timebase = math.floor((sampleTimeS * 125000000) + 2) ## obi change to 3000 D
         timebase = int(timebase)
         return timebase
+
+
     def getTimestepFromTimebase(self, timebase):
         """ Return timebase to sampletime as seconds. """
-        if timebase < 5:
-            dt = 2. ** timebase / 5E9
+        if timebase < 3: ## obi change to 3000 D
+            dt = 2. ** timebase / 1E9 ## obi change to 3000 D
         else:
-            dt = (timebase - 4.) / 156250000.
+            dt = (timebase - 2.) / 125000000. ## obi change to 3000 D
         return dt
+
+
     def setSamplingFrequency(self, sampleFreq, noSamples, oversample=0, segmentIndex=0):
         sampleInterval = 1.0 / sampleFreq
         duration = noSamples * sampleInterval        
