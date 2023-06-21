@@ -487,10 +487,10 @@ class picoscope:
         self.sampleInterval=sampleRate.value / 1.0E9
         self.maxSamples=maxSamples.value
 
-        self.noSamples = noSamples
+        # remove changing the nosample
         self.sampleRate = 1.0 / self.sampleInterval
         
-        return (self.sampleRate, self.maxSamples)
+        return (self.sampleRate, self.maxSamples, noSamples)
         
     def memorySegments(self, noSegments):
         nMaxSamples = c_uint32()

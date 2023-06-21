@@ -355,9 +355,10 @@ class myPicoScope(QThread):
             # TODO choose yourself, currently hard coded
             self.res = self.ps.setSamplingFrequency(self.samplefreq, self.nosamples) # sample frequency, number of samples
         else:
-            self.res=[1250000000,3000000000]
+            self.res=[1250000000,3000000000, 0]
         self.sampleRate = self.res[0]
         self.interval=1./self.res[0]
+        self.nosamples = self.res[2]
         if self._connect:
             self.samples_per_segment = self.ps.memorySegments(self.captures) # number of memory segments must be equal or larger than self.captures!
             if self.samples_per_segment<self.nosamples:
@@ -805,7 +806,7 @@ class myPicoScope(QThread):
                 i_debug=0
                 for waveform in data:
                     ### old
-                    if 1:
+                    if 0:
                         #baseline=capture[0: int(len(capture)*0.05)]
                         #baseline=np.median(baseline)
                         baseline=0
@@ -826,6 +827,9 @@ class myPicoScope(QThread):
                         #area*=self.interval
                         #areas2.append(sum(area))
                     else:
+                        # update: works in chiba, same as megumi chiba
+                        # with -1 mV trigger gives a nice pedestal and spe
+                        #
                         # this version gives strange spe peak, but nice pedastal, previous version seems much more stable
                         # spoke with John from Mainz about this algo
                         #preTriggerSamples=int(len(waveform)*0.09)
@@ -837,7 +841,7 @@ class myPicoScope(QThread):
                         area=waveform[0:int(len(waveform)*0.5)]-baseline # any sinus noise should add up to zero
                         area*=self.interval
                         area=sum(area)
-                        if i_debug<5: print("area", area)
+                        #if i_debug<5: print("area", area)
                         areas.append(area)
 
 
