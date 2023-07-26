@@ -438,6 +438,8 @@ class myPicoScope(QThread):
         self.lastCPUSaved=endBlock
         self.cpu=[]
         self.absTimes=[]
+        self.indisposedTimes=[]
+        #
         if self.calcDTimes: self.dtimes=[]
         i=0 # block nbr
 
@@ -464,9 +466,9 @@ class myPicoScope(QThread):
             # block
             startBlock=time.time() # record measurement time -> needs to be directly before the block
             if self._connect:
-                
+                it=self.ps.runBlock(pretrig=self.nopretriggersamples)
                 #print ("run")
-                indisposedTimes.append(indisposedTimes)
+                self.indisposedTimes.append(it)
                 while(self.ps.isReady() == False):
                     time.sleep(self.sleeptime)
             else:
@@ -498,6 +500,9 @@ class myPicoScope(QThread):
                 dataB=dataV[1]
                 dataC=dataV[2]
                 dataD=dataV[3]
+                
+                
+                #print(self.indisposedTimes) giving only 0s
 
                 
             ############################################################

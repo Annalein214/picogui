@@ -487,7 +487,8 @@ class picoscope:
         self.sampleInterval=sampleRate.value / 1.0E9
         self.maxSamples=maxSamples.value
 
-        # remove changing the nosample
+        # remove changing the nosample -> no this is only to save them, do not remove this line
+        self.noSamples =noSamples
         self.sampleRate = 1.0 / self.sampleInterval
         
         return (self.sampleRate, self.maxSamples, noSamples)
@@ -774,10 +775,10 @@ class picoscope:
             tinfo
             )
         print("Before")
-        print(tinfo)
         tinfoPtr=tinfo.ctypes.data_as(POINTER(self.ps3000a_TRIGGER_INFO))  
                 
         if platform.system() == 'Linux' or platform.system()=="Darwin":
+            # gives segmentation fault
             pass
         else:
             try:
