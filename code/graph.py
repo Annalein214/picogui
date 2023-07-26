@@ -230,7 +230,7 @@ class plotWidget(FigureCanvas):
                         self.ax1.bar(binedges[:-1], histvals, binwidth*0.9, facecolor="b", edgecolor="b")
                         self.ax1.set_xlim(borders[0],borders[1])
                         self.ax1.set_ylim(1.e-1, max(histvals)+max(histvals)*0.1)
-                        try: self.ax1.set_yscale("log", nonposy="clip")
+                        try: self.ax1.set_yscale("log", nonpositive="clip")
                         except: pass
                         # TODO error bars
 
@@ -245,8 +245,8 @@ class plotWidget(FigureCanvas):
                         #print("Gain:",self.gain(meanHV))# 10073680.8734
                         #gain=1.e7 # generic, can be corrected more easily but gives nicer numbers -> TODO change to charge in pC instead
                         #areas=np.float64(areas) /50./(1.602*1e-19)/gain #/self.gain(meanHV) # change from negative to positive for negative / positive pulses
-                        areas=np.float64(areas)/50./1.e12 # -> convert to charge in pC
-
+                        areas=np.float64(areas)/50*1.e12 # -> convert to charge in pC
+                        #print(areas)
                         if negativePulse:
                             areas=-areas
                         
@@ -271,7 +271,7 @@ class plotWidget(FigureCanvas):
                         self.ax1.set_xlim(borders[0],borders[1])
                         self.ax1.set_ylim(1.e-1, max(histvals)+max(histvals)*0.1)                        
                         '''
-                        try: self.ax1.set_yscale("log", nonposy="clip")
+                        try: self.ax1.set_yscale("log", nonpositive="clip")
                         except: pass
                         
                         #for label in self.ax1.get_xticklabels()[::2]:
@@ -298,6 +298,8 @@ class plotWidget(FigureCanvas):
                 i=0
                 for waveform in savedCaptures:
                         wfmtime=(np.arange(0,len(waveform),1))* 1./self.daq.sampleRate*1e9
+                        #print("Sampling Rate %0.1e" % self.daq.sampleRate)
+                        #print("Max wfmtime %d %d" % (np.max(wfmtime), len(wfmtime)))
                         self.ax3.plot(wfmtime, np.array(waveform)*1000, "-",
                                       linewidth=1,
                                       alpha=0.5

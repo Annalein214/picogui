@@ -817,7 +817,7 @@ if __name__ == "__main__":
     # if true use rapid block mode
     # if false use normal block mode
     rapid=True    
-    getTriggerInfo=False
+    getTriggerInfo=True
     mso=False
     
     print("Set Channels")
@@ -850,12 +850,15 @@ if __name__ == "__main__":
     for i in range(2):
 
         print("\nRun", i)        
-        mps.runBlock()
-
+        timeIndisposedMs= mps.runBlock()
+        
         print("Wait for trigger")
+
         while(mps.isReady() == False): 
             time.sleep(0.01)
         print("Trigger fired")
+
+        print("timeIndisposedMs", timeIndisposedMs)
 
         #for channel in ["A", "B"]:# "C", "D"]:
         dataV = None
@@ -884,8 +887,9 @@ OSError: Error calling getDataV: PICO_RATIO_MODE_NOT_SUPPORTED (The selected dow
             
             if getTriggerInfo:
                     triggerinfo=mps.GetTriggerInfoBulk()
-            print("The data:")  
-                    
+            
+
+            print("The data:")          
             j=0
             for ch in ["A", "B", "C", "D"]:
 

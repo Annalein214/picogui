@@ -326,8 +326,8 @@ class Measurement:
             self.lighttimes/=3600
             self.lighttimes+=self.starthourmin
             self.lightvoltage=np.array(self.lights[:,1])
-        else:
-            self.log.error("Values for light not found")
+        #else:
+        #    self.log.error("Values for light not found")
 
         if self.cpu != []:
             cputime=self.cpu[:,0]
@@ -637,7 +637,7 @@ class Measurement:
 
         if measLight:
             try:
-                print("!!", self.lightvoltage, "\n!!",self.lighttimes)
+                #print("!!", self.lightvoltage, "\n!!",self.lighttimes)
                 ax11.plot(self.lighttimes, self.lightvoltage,label="Light sensor", color="blue", alpha=0.7) # room temperature, plot separately
             except Exception as e:
                 pass

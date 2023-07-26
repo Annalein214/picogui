@@ -460,11 +460,13 @@ class myPicoScope(QThread):
                 # adjust to a more useful value matching the actual execution duration
                 self.loopduration=max(MINIMALLOOPDURATION,(time.time()-startBlock)*2*1000)            
 
+
             # block
             startBlock=time.time() # record measurement time -> needs to be directly before the block
             if self._connect:
-                self.ps.runBlock(pretrig=self.nopretriggersamples)
+                
                 #print ("run")
+                indisposedTimes.append(indisposedTimes)
                 while(self.ps.isReady() == False):
                     time.sleep(self.sleeptime)
             else:
@@ -685,15 +687,15 @@ class myPicoScope(QThread):
         # end loop
         
 
-        self.out.info("Measurement duration netto: %.2e sec" % (sum(self.measurementtime)))
-        self.out.info("Mean measurement time per block: %.2e sec" % (sum(self.measurementtime)/i))
+        self.out.info("Total measurement duration netto (from CPU time): %.2e sec" % (sum(self.measurementtime)))
+        self.out.info("Mean measurement time per block (from CPU time): %.2e sec" % (sum(self.measurementtime)/i))
         recordedTimePerBlock=self.nosamples * self.captures*self.interval # seconds
         noRecordPerBlock=(sum(self.measurementtime)/i)-recordedTimePerBlock
         if self.captures>1:
             noTriggerTimeBetweenCapture=noRecordPerBlock/(self.captures-1)
         else:
             noTriggerTimeBetweenCapture=0
-        self.out.info("Mean time without trigger + dead time between captures: %.2e ns" % (noTriggerTimeBetweenCapture*1.e9))
+        self.out.info("Estimation of deadtime + time waiting for trigger: %.2e ns" % (noTriggerTimeBetweenCapture*1.e9))
 
         self.loopduration=MINIMALLOOPDURATION # reset
         
